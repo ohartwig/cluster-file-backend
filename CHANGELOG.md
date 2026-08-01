@@ -1,3 +1,15 @@
+# [2.6.0](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.5.2...v2.6.0) (2026-08-01)
+
+
+### Bug Fixes
+
+* **qa:** den phar-Umweg aufloesen und sequenziell formatieren ([7d123a7](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/7d123a7a900f69ab85926093b5d682cad75d0a95))
+
+
+### Features
+
+* **commit-signing:** add .gitsigners + lefthook hint (G-SDLC-002 step 3) ([47a73b7](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/47a73b7606971af9b48f93868887cf08d34f0aec))
+
 ## [2.5.2](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.5.1...v2.5.2) (2026-07-29)
 
 
