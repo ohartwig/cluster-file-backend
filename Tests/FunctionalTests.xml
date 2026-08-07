@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Funktionale Tests: sie fahren eine echte TYPO3-Instanz hoch.
+
+    Das ist der einzige Ort, an dem die Verdrahtung aus Configuration/Services.yaml
+    ueberhaupt ausgefuehrt wird. Ein Unit-Test baut die Klasse von Hand und bringt
+    jedes Argument selbst mit — die Frage, ob der DI-Container es liefern kann,
+    stellt er damit nie.
+
+    Die Existenz dieser Datei schaltet test:phpunit:functional in der Pipeline
+    scharf; ohne sie wird der Job nicht einmal erzeugt.
+
+    Der Bootstrap wird aus dem Testing-Framework referenziert statt kopiert.
+    Das Framework empfiehlt eine Kopie, aber sie bringt nur Nachteile: sie
+    laeuft beim naechsten Framework-Update auseinander, und sie ist Code im
+    Repository, den die statische Analyse mitliest — ORIGINAL_ROOT wird erst
+    zur Laufzeit definiert, PHPStan meldet die Konstante als unbekannt. Der
+    Bootstrap haengt nicht an seinem eigenen Ort: defineOriginalRootPath()
+    leitet den Pfad aus getWebRoot() ab.
+-->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/12.0/phpunit.xsd"
+         backupGlobals="true"
+         bootstrap="../vendor/typo3/testing-framework/Resources/Core/Build/FunctionalTestsBootstrap.php"
+         cacheDirectory=".phpunit.cache"
+         cacheResult="false"
+         colors="true"
+         failOnRisky="true"
+         failOnWarning="true"
+         requireCoverageMetadata="false"
+>
+    <testsuites>
+        <testsuite name="Functional">
+            <directory>Functional</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory suffix=".php">../Classes</directory>
+        </include>
+    </source>
+    <php>
+        <ini name="display_errors" value="1"/>
+        <env name="TYPO3_CONTEXT" value="Testing"/>
+    </php>
+</phpunit>
