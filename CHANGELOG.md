@@ -1,3 +1,10 @@
+## [2.6.1](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.0...v2.6.1) (2026-08-07)
+
+
+### Bug Fixes
+
+* **ci:** bring the github-mirror pin up to the current release ([e83a082](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/e83a082cfa03944dc1cdccbecd7f1f010af744b8))
+
 # [2.6.0](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.5.2...v2.6.0) (2026-08-01)
 
 
