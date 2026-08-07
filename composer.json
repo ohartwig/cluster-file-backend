@@ -38,7 +38,7 @@
     "require-dev": {
         "deptrac/deptrac": "^4.6",
         "ergebnis/composer-normalize": "^2.52",
-        "moselwal/dev": "^5.0",
+        "moselwal/dev-typo3": "^1.0",
         "phpstan/phpstan-deprecation-rules": "^2.0",
         "phpunit/phpunit": "^13.0",
         "typo3/testing-framework": "^9.0"
