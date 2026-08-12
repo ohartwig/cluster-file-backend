@@ -41,7 +41,7 @@
         "moselwal/dev-typo3": "^1.0",
         "phpstan/phpstan-deprecation-rules": "^2.0",
         "phpunit/phpunit": "^13.0",
-        "typo3/testing-framework": "^9.0"
+        "typo3/testing-framework": "^9.6.1"
     },
     "suggest": {
         "ext-igbinary": "Faster default serializer (recommended)",
