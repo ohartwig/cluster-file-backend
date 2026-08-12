@@ -1,3 +1,10 @@
+## [2.6.2](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.1...v2.6.2) (2026-08-12)
+
+
+### Bug Fixes
+
+* **deps:** update dependency justinrainbow/json-schema to ^6.10.0 ([4fb7e99](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/4fb7e99ed70fac7ede5a9705813fc06606174866))
+
 ## [2.6.1](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.0...v2.6.1) (2026-08-07)
 
 
