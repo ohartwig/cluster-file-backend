@@ -36,7 +36,7 @@
         "typo3/cms-core": "^14.3"
     },
     "require-dev": {
-        "deptrac/deptrac": "^4.6",
+        "deptrac/deptrac": "^4.7.1",
         "ergebnis/composer-normalize": "^2.52",
         "moselwal/dev-typo3": "^1.0",
         "phpstan/phpstan-deprecation-rules": "^2.0",
