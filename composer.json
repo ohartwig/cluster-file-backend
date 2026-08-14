@@ -40,7 +40,7 @@
         "ergebnis/composer-normalize": "^2.52",
         "moselwal/dev-typo3": "^1.0",
         "phpstan/phpstan-deprecation-rules": "^2.0.5",
-        "phpunit/phpunit": "^13.3.0",
+        "phpunit/phpunit": "^13.3.1",
         "typo3/testing-framework": "^9.6.1"
     },
     "suggest": {
