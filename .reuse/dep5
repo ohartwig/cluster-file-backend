@@ -1,16 +1,19 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: cluster-file-backend
-Upstream-Contact: Moselwal Digitalagentur GmbH <support@moselwal.de>
+Upstream-Contact: Kai Ole Hartwig <support@ole-hartwig.eu>
 Source: https://gitlab.moselwal.io/development/moselwal/cluster-file-backend
 
 Files: *
 Copyright: 2026 Moselwal Digitalagentur GmbH, Kai Ole Hartwig
+Copyright: 2026  Kai Ole Hartwig <mail@ole-hartwig.eu>
 License: MIT
 
 Files: .specify/* .claude/*
 Copyright: 2026 Moselwal Digitalagentur GmbH, Kai Ole Hartwig
+Copyright: 2026  Kai Ole Hartwig <mail@ole-hartwig.eu>
 License: MIT
 
 Files: composer.json composer.lock
 Copyright: 2026 Moselwal Digitalagentur GmbH, Kai Ole Hartwig
+Copyright: 2026  Kai Ole Hartwig <mail@ole-hartwig.eu>
 License: MIT

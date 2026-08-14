@@ -12,14 +12,14 @@
     ],
     "authors": [
         {
-            "name": "Moselwal Digitalagentur GmbH",
-            "email": "support@moselwal.de",
+            "name": "Kai Ole Hartwig",
+            "email": "support@ole-hartwig.eu",
             "homepage": "https://moselwal.de",
             "role": "Maintainer"
         },
         {
             "name": "Kai Ole Hartwig",
-            "email": "o.hartwig@moselwal.de",
+            "email": "o.hartwig@ole-hartwig.eu",
             "role": "Developer"
         }
     ],
