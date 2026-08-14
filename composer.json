@@ -71,6 +71,7 @@
     },
     "config": {
         "allow-plugins": {
+            "infection/extension-installer": true,
             "ergebnis/composer-normalize": true,
             "phpstan/extension-installer": true,
             "sbuerk/typo3-cmscomposerinstallers-testingframework-bridge": true,
