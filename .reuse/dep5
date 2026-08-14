@@ -1,7 +1,7 @@
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
 Upstream-Name: cluster-file-backend
 Upstream-Contact: Kai Ole Hartwig <support@ole-hartwig.eu>
-Source: https://gitlab.moselwal.io/development/moselwal/cluster-file-backend
+Source: https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend
 
 Files: *
 Copyright: 2026 Moselwal Digitalagentur GmbH, Kai Ole Hartwig
