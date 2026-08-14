@@ -1,3 +1,11 @@
+## [2.6.3](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.2...v2.6.3) (2026-08-14)
+
+
+### Bug Fixes
+
+* allow the infection extension installer plugin ([010d2b4](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/010d2b44e99ab2246bb1e227ff5409e7f82f62fa))
+* **ci:** point at the current hosts ([8625372](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/8625372eda75a8e80dbd4812c73a0f12c53ef2cf))
+
 ## [2.6.2](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.1...v2.6.2) (2026-08-12)
 
 
