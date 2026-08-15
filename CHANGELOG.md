@@ -1,3 +1,10 @@
+## [2.6.4](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.3...v2.6.4) (2026-08-15)
+
+### :repeat: Chores
+
+* **ci:** drop the local .releaserc.yml, which was overriding the preset ([f8ef62a](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/f8ef62a8b30b70f2ded9ad93539058d876182994))
+* **deps:** update dependency phpunit/phpunit to ^13.3.1 ([54259ef](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/54259efae1e4eb099a12e7b2298016bd97411b97))
+
 ## [2.6.3](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.2...v2.6.3) (2026-08-14)
 
 
