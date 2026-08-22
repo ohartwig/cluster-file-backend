@@ -1,3 +1,13 @@
+## [2.6.6](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.5...v2.6.6) (2026-08-22)
+
+### :bug: Fixes
+
+* **deps:** update dependency justinrainbow/json-schema to ^6.11.0 ([0bfd288](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/0bfd288c5b3b8a2daa056fe8317333509c4c8961))
+
+### :repeat: Chores
+
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.29 ([6f5f98c](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/6f5f98ce3c1421f66800cd08425b2e7f24d8757b))
+
 ## [2.6.5](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.4...v2.6.5) (2026-08-15)
 
 ### :bug: Fixes
