@@ -1,3 +1,12 @@
+## [2.6.13](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.12...v2.6.13) (2026-09-13)
+
+### :repeat: Chores
+
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.31 ([0d82ea5](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/0d82ea5740bd07bd5fb86939bf99d1366b31f43b))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.32 ([cbc4a99](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/cbc4a99b38fe32e8878c9146bc26cdcf5af25871))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.33 ([2a8f3ba](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/2a8f3ba9cb84d355c11d1f82cb388e883b33428b))
+* **deps:** update dependency ergebnis/composer-normalize to ^2.53.0 ([03d896a](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/03d896abdf976a6b96318ba88a653ff2e83f1079))
+
 ## [2.6.12](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.11...v2.6.12) (2026-09-10)
 
 ### :repeat: Chores
