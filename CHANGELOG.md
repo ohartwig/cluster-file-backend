@@ -1,3 +1,31 @@
+## [2.6.14](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.13...v2.6.14) (2026-09-14)
+
+### :bug: Fixes
+
+* **docs:** Markdown-Hygiene fuer lint:markdown ([d1525ed](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/d1525ed8cbd93a2a823635089cdc9f25a5849ee2))
+
+### :repeat: Continuous Integrations
+
+* release with yasrt, the tag pipeline kept ([3b56772](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/3b567722a935473a5cf1f9fa65dd8421f8268406))
+
+### :repeat: Chores
+
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.48 ([0fb4d14](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/0fb4d140b648555ca111c0db8782708ce42c1562))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.47 ([d8dbea8](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/d8dbea89a52d0f6a5c27f67f2bd723f2924f3227))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.46 ([18b85b5](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/18b85b517789e303bb060dc32fbf0beb03c6fee9))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.45 ([8e4f36f](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/8e4f36f986a245982d88966239cc5eafb25e4e0f))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.44 ([72a1509](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/72a1509d2a41205171669b09ceac4b6bd57aaac1))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.43 ([4e0bb38](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/4e0bb3835563fefaadf0ca832f4459875bd31a16))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.42 ([aaadc64](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/aaadc640a9394eb605451effbbece612c09500a3))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.41 ([62ee95e](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/62ee95e6ab5ebd6eece8a27d896681be11cb22b1))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.40 ([9ab0a4e](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/9ab0a4ef159549c14190e6c07c045c94ab9d4cf9))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.39 ([c9c3568](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/c9c35685e6a2b5457529b3212ed34f71ec2d6886))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.38 ([c89daff](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/c89daff22324ea2a0b3daf888eb180a0a1b6e56a))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.37 ([36966a8](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/36966a8dee94acf80e59791f25ae059229c84869))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.36 ([8e91816](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/8e9181660999a3b81775c94ad95a773cfd3b4eaf))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.35 ([61570d5](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/61570d564f2460cc278598976cfc58e066d6bc6a))
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.3.34 ([83fd417](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/83fd41777e5fff554e00cdd75bbab9eff98b4f87))
+
 ## [2.6.13](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.12...v2.6.13) (2026-09-13)
 
 ### :repeat: Chores
