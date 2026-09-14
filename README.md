@@ -303,7 +303,7 @@ because metadata truth never lives on a pod.
 
 ### Detailed flow
 
-```
+```text
 Pod A: TYPO3 backend "Clear all caches" / editor saves page /
        `bin/typo3 cache:flush`
    │
