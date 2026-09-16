@@ -1,3 +1,13 @@
+## [2.6.16](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.15...v2.6.16) (2026-09-16)
+
+### :repeat: Continuous Integrations
+
+* **deps:** update dependency devops/ci-cd-components/extension-clean-export to v1.5.0 ([31b2e9d](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/31b2e9d02e6778cffb7d91ed8b25c7991214dd74))
+
+### :repeat: Chores
+
+* **deps:** update dependency phpunit/phpunit to ^13.3.4 ([81b5be8](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/81b5be80aca4bdcfed8b52df93fdf3c35d7838f2))
+
 ## [2.6.15](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.14...v2.6.15) (2026-09-16)
 
 ### :repeat: Chores
