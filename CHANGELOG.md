@@ -1,3 +1,9 @@
+## [2.6.17](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.16...v2.6.17) (2026-09-17)
+
+### :repeat: Chores
+
+* **deps:** update dependency typo3/testing-framework to ^9.7.0 ([1c2e82e](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/1c2e82e028835085e5b0799b8e2de62f8356b01b))
+
 ## [2.6.16](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.15...v2.6.16) (2026-09-16)
 
 ### :repeat: Continuous Integrations
