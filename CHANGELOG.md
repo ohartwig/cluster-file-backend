@@ -1,3 +1,13 @@
+## [2.6.18](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.17...v2.6.18) (2026-09-24)
+
+### :bug: Fixes
+
+* **deps:** update dependency justinrainbow/json-schema to ^6.13.0 ([2f3b83b](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/2f3b83b738ceb84649e76f0d21ddde859a1821fa))
+
+### :repeat: Continuous Integrations
+
+* components by rolling major, as every consumer should ([509970c](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/509970c186ad3c9d763e444aa04e27de1d92d6ec))
+
 ## [2.6.17](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.16...v2.6.17) (2026-09-17)
 
 ### :repeat: Chores
