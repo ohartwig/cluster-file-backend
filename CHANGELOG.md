@@ -1,3 +1,9 @@
+## [2.6.19](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.18...v2.6.19) (2026-09-25)
+
+### :repeat: Chores
+
+* **deps:** update dependency ergebnis/composer-normalize to ^2.54.0 ([275a7b4](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/275a7b464fd723dac2d3e72e4c5dd656a27f052a))
+
 ## [2.6.18](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.17...v2.6.18) (2026-09-24)
 
 ### :bug: Fixes
