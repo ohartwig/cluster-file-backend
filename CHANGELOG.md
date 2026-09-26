@@ -1,3 +1,14 @@
+## [2.6.21](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.20...v2.6.21) (2026-09-26)
+
+### :bug: Fixes
+
+* **deps:** update dependency php to ^8.5.11 ([18936ca](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/18936ca520fab536483b5008681bd095866e56bb))
+
+### :repeat: Chores
+
+* **deps:** update dependency mstruebing/editorconfig-checker to v3.11.3 ([df8e4eb](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/df8e4ebdc2ec44738ed11c71a099a94788fb6692))
+* **deps:** update dependency davidanson/markdownlint-cli2 to v0.23.3 ([087bee1](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/087bee1b3d9bb694bb40b5dd300a9d283c16038f))
+
 ## [2.6.20](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.19...v2.6.20) (2026-09-26)
 
 ### :repeat: Chores
