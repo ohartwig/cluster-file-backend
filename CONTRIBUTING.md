@@ -39,7 +39,7 @@ runs the full suite on every change.
 Every commit must be signed off, certifying the
 [Developer Certificate of Origin](https://developercertificate.org/):
 
-```
+```sh
 git commit -s
 ```
 
@@ -47,7 +47,7 @@ git commit -s
 
 Commits must also carry a verifiable signature (SSH or GPG):
 
-```
+```sh
 git config commit.gpgsign true
 ```
 
