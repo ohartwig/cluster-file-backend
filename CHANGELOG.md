@@ -1,3 +1,17 @@
+## [2.6.22](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.21...v2.6.22) (2026-09-28)
+
+### :memo: Documentation
+
+* give the shell examples in CONTRIBUTING.md a language ([c78d4a1](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/c78d4a1d0763a9afc190ed09f69ae1bfd169437c))
+* add full licence text, contribution guide and code of conduct ([9870c57](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/9870c572494025b90e9dcb4d277f898dda7f9d7c))
+
+### :repeat: Chores
+
+* **ci:** notify Packagist after the GitHub mirror push ([7d2a8ac](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/7d2a8ac50a740ba0159838718241716810169536))
+* point package metadata at the public GitHub repository ([3a96a40](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/3a96a40eb7c3cc31bae2bd3f7e18f0f5e6f4e4a3))
+* **repo-templates:** sync ([ee6f435](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/ee6f435e3893bf9840574ec13c7bdb6b9004404e))
+* **repo-templates:** sync ([f2c9f9b](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/f2c9f9b068e0ec450fe8de10de193456c5891060))
+
 ## [2.6.21](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.20...v2.6.21) (2026-09-26)
 
 ### :bug: Fixes
