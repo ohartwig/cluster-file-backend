@@ -14,7 +14,6 @@
         {
             "name": "Kai Ole Hartwig",
             "email": "support@ole-hartwig.eu",
-            "homepage": "https://moselwal.de",
             "role": "Maintainer"
         },
         {
@@ -23,11 +22,10 @@
             "role": "Developer"
         }
     ],
-    "homepage": "https://moselwal.de",
+    "homepage": "https://github.com/ohartwig/cluster-file-backend",
     "support": {
-        "issues": "https://github.com/Moselwal-Digitalagentur/cluster-file-backend/issues",
-        "source": "https://github.com/Moselwal-Digitalagentur/cluster-file-backend",
-        "docs": "https://moselwal.de/open-source/cluster-file-backend"
+        "issues": "https://github.com/ohartwig/cluster-file-backend/issues",
+        "source": "https://github.com/ohartwig/cluster-file-backend"
     },
     "require": {
         "php": "^8.5.11",
