@@ -1,3 +1,18 @@
+## [2.6.23](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.22...v2.6.23) (2026-09-30)
+
+### :repeat: Continuous Integrations
+
+* **deps:** update dependency devops/ci-cd-components/composed-default-pipelines to v2.21.12 ([4625c07](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/4625c0726377e08f82bf90c468058f384c0ea94d))
+* **deps:** update dependency devops/ci-cd-components/composed-default-pipelines to v2.21.11 ([22137c4](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/22137c4e6cf778196dde531561bbedc6c46eabfa))
+* **deps:** update dependency devops/ci-cd-components/composed-default-pipelines to v2.21.10 ([1e4a0fe](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/1e4a0fee5ba3c434ac022474295fe25bd200c050))
+* **deps:** update dependency devops/ci-cd-components/composed-default-pipelines to v2.21.9 ([4e8436f](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/4e8436f80e142dad15f95c25014867750ee05ee6))
+* **deps:** update dependency devops/ci-cd-components/composed-default-pipelines to v2.21.3 ([b8c4c58](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/b8c4c58a7f83059ecffd45ffab60aeaead49dc2d))
+* **deps:** update dependency devops/ci-cd-components/composed-default-pipelines to v2.21.2 ([fea86ed](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/fea86edbfdf6549a650ba6e8ea2f26043c02afaa))
+
+### :repeat: Chores
+
+* **deps:** update dependency devops/ci-cd-components/composed-default-pipelines to v2.21.1 ([6d771df](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/6d771df6264adaa151aac33df3863c9c2196aa87))
+
 ## [2.6.22](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.21...v2.6.22) (2026-09-28)
 
 ### :memo: Documentation
