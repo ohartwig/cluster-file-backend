@@ -36,7 +36,7 @@
     "require-dev": {
         "deptrac/deptrac": "^4.7.2",
         "ergebnis/composer-normalize": "^2.54.0",
-        "moselwal/dev-typo3": "^1.0",
+        "koh/dev-typo3": "^1.0",
         "phpstan/phpstan-deprecation-rules": "^2.0.5",
         "phpunit/phpunit": "^13.3.5",
         "typo3/testing-framework": "^9.7.0"
@@ -51,9 +51,15 @@
             "type": "composer",
             "url": "https://git.ole-hartwig.eu/api/v4/group/175/-/packages/composer/",
             "only": [
-                "moselwal/*",
                 "hn/typo3-mcp-server",
                 "netresearch/nr-passkeys-be"
+            ]
+        },
+        {
+            "type": "composer",
+            "url": "https://git.ole-hartwig.eu/api/v4/group/1091/-/packages/composer/",
+            "only": [
+                "koh/dev*"
             ]
         }
     ],
