@@ -6,10 +6,10 @@
 
 declare(strict_types=1);
 
-// Delegiert vollständig an die zentrale moselwal/dev-Konvention
+// Delegiert vollständig an die zentrale koh/dev-Konvention
 // (@Symfony + @PER-CS3x0 + @PHP85Migration + @DoctrineAnnotation).
-// Die moselwal/dev-Konfig liest MOSELWAL_FRAMEWORK aus der Umgebung.
-\putenv('MOSELWAL_FRAMEWORK=typo3');
-$_ENV['MOSELWAL_FRAMEWORK'] = 'typo3';
+// Die koh/dev-Konfig liest KOH_FRAMEWORK aus der Umgebung.
+\putenv('KOH_FRAMEWORK=typo3');
+$_ENV['KOH_FRAMEWORK'] = 'typo3';
 
-return require __DIR__ . '/vendor/moselwal/dev/.php-cs-fixer.dist.php';
+return require __DIR__ . '/vendor/koh/dev/.php-cs-fixer.dist.php';
