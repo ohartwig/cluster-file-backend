@@ -50,8 +50,9 @@ final class StructuredLoggerEnricherTest extends TestCase
 
         $record = ($enricher)(['message' => 'event']);
 
-        self::assertNotEmpty($record['context']['podName']);
-        self::assertNotSame('unknown', $record['context']['podName']);
+        $host = gethostname();
+        self::assertIsString($host);
+        self::assertSame($host, $record['context']['podName']);
     }
 
     public function testRecordWithoutPriorContextGetsContextArray(): void
