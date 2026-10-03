@@ -1,3 +1,13 @@
+## [2.6.24](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.23...v2.6.24) (2026-10-03)
+
+### :bug: Fixes
+
+* **deps:** update composer packages ([3a7229a](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/3a7229a4580e408578433fdde5949e3976f01b78))
+
+### :repeat: Chores
+
+* **deps:** update dependency phpunit/phpunit to ^13.4.0 ([7159e2c](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/7159e2c2016eae3ac8a52532b0571e4f477fdf51))
+
 ## [2.6.23](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.22...v2.6.23) (2026-09-30)
 
 ### :repeat: Continuous Integrations
