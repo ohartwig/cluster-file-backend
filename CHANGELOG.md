@@ -1,3 +1,9 @@
+## [2.6.26](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.25...v2.6.26) (2026-10-04)
+
+### :repeat: Chores
+
+* **repo-templates:** sync ([57f53e5](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/57f53e5c19e7813f2f2c28d8fee0d13afed30d25))
+
 ## [2.6.25](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.24...v2.6.25) (2026-10-03)
 
 ### :repeat: Chores
