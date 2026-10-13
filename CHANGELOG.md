@@ -1,3 +1,9 @@
+## [2.6.28](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.27...v2.6.28) (2026-10-13)
+
+### :repeat: Chores
+
+* **deps:** update dependency phpunit/phpunit to ^13.4.2 ([cc3b59e](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/cc3b59ee5ab35f2f8bff8220381a9415a5e6b807))
+
 ## [2.6.27](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.26...v2.6.27) (2026-10-06)
 
 ### :repeat: Chores
