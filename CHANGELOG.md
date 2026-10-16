@@ -1,3 +1,14 @@
+## [2.6.29](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.28...v2.6.29) (2026-10-16)
+
+### :repeat: Continuous Integrations
+
+* drop the TER publish, Packagist is enough ([8fff4c7](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/8fff4c76e90e33664d34a4e9366d7bfa61660426))
+* publish releases to the TYPO3 Extension Repository ([00cb27e](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/00cb27eecbdfa211969b68187a9c09d153e5dc9c))
+
+### :repeat: Chores
+
+* **repo-templates:** sync ([d69d515](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/d69d515552ab3ffb8bdfca40e164e29a395618f4))
+
 ## [2.6.28](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.27...v2.6.28) (2026-10-13)
 
 ### :repeat: Chores
