@@ -30,7 +30,7 @@
     "require": {
         "php": "^8.5.11",
         "ext-hash": "*",
-        "justinrainbow/json-schema": "^6.13.1",
+        "justinrainbow/json-schema": "^6.14.0",
         "typo3/cms-core": "^14.3"
     },
     "require-dev": {
