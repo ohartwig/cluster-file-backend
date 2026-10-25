@@ -1,3 +1,9 @@
+## [2.6.32](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.31...v2.6.32) (2026-10-25)
+
+### :bug: Fixes
+
+* **deps:** update dependency php to ^8.5.12 ([3f8822e](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/3f8822ee4d2db86538c9229450fce6a2fe7142c0))
+
 ## [2.6.31](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.30...v2.6.31) (2026-10-25)
 
 ### :bug: Fixes
