@@ -1,3 +1,13 @@
+## [2.6.31](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.30...v2.6.31) (2026-10-25)
+
+### :bug: Fixes
+
+* **deps:** update dependency justinrainbow/json-schema to ^6.14.0 ([6cd99cc](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/6cd99cce33356bdd516eb72a24ca4fef6249d4ad))
+
+### :repeat: Chores
+
+* **deps:** update dependency davidanson/markdownlint-cli2 to v0.24.0 ([9cf742c](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/9cf742cd18eb93f85c1b8c623cec9eebc553200f))
+
 ## [2.6.30](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.29...v2.6.30) (2026-10-17)
 
 ### :repeat: Chores
