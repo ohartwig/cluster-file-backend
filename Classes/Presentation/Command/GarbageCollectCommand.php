@@ -41,6 +41,7 @@ final class GarbageCollectCommand extends Command
                 InputOption::VALUE_REQUIRED,
                 'Fully qualified cache namespace: cfb:{env}:{instance}:{cacheName}',
             )
+            ->addOption('local-max-age', null, InputOption::VALUE_REQUIRED, 'Delete pod-local payload files not read for this many seconds (default 604800 = 7 days)')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'No write operations')
         ;
     }
@@ -59,9 +60,16 @@ final class GarbageCollectCommand extends Command
             return self::EXIT_ARG_ERROR;
         }
 
+        $maxAge = $input->getOption('local-max-age');
+        if (null !== $maxAge && (!\is_string($maxAge) || 1 !== preg_match('/^[1-9][0-9]{0,9}$/', $maxAge))) {
+            $output->writeln('<error>--local-max-age must be a positive number of seconds</error>');
+
+            return self::EXIT_ARG_ERROR;
+        }
+
         $dryRun = (bool) $input->getOption('dry-run');
         try {
-            $report = $this->runner->run($namespace, $dryRun);
+            $report = $this->runner->run($namespace, $dryRun, null === $maxAge ? null : (int) $maxAge);
             $output->writeln((string) json_encode($report->toArray(), \JSON_THROW_ON_ERROR));
 
             return self::EXIT_OK;

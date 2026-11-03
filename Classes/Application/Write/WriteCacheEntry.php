@@ -114,7 +114,8 @@ final class WriteCacheEntry
         // Write local FIRST: on disk-failure (ENOSPC, lost permissions) no
         // inconsistent metadata cluster state appears. If the metadata set
         // then fails, at worst an orphan local file remains, which the next
-        // pod restart (emptyDir reset) or GC removes. Both kinds of orphan
+        // pod restart (emptyDir reset) or the local pass of the GC
+        // (RunGarbageCollection, files unread for the max age) removes. Both kinds of orphan
         // are harmless compared to "metadata says valid, every pod sees an
         // endless blob-miss".
         $metadata = $this->buildMetadata($identifier, $hash, $checksum, $lifetime, $tags, $payload);

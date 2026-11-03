@@ -46,6 +46,25 @@ final class EmptyDirPayloadStoreTest extends TestCase
         self::assertSame($bytes, $store->readVerified($hash, $checksum));
     }
 
+    public function testPurgeOlderThanRemovesOnlyStalePayloadFiles(): void
+    {
+        $store = new EmptyDirPayloadStore($this->tmpDir, '.php');
+        $old = new PayloadHash(hash('sha256', 'old'));
+        $fresh = new PayloadHash(hash('sha256', 'fresh'));
+        $store->write($old, 'old');
+        $store->write($fresh, 'fresh');
+        touch($store->pathFor($old), 1_000);
+        $foreign = \dirname($store->pathFor($old)) . '/notes.txt';
+        file_put_contents($foreign, 'keep');
+        touch($foreign, 1_000);
+
+        self::assertSame(1, $store->purgeOlderThan(2_000));
+
+        self::assertFalse($store->exists($old));
+        self::assertTrue($store->exists($fresh));
+        self::assertFileExists($foreign);
+    }
+
     public function testReadVerifiedThrowsOnMissingFile(): void
     {
         $store = new EmptyDirPayloadStore($this->tmpDir);

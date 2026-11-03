@@ -14,6 +14,7 @@ use Moselwal\Typo3ClusterCache\Domain\Contract\ClockPort;
 use Moselwal\Typo3ClusterCache\Domain\Model\CacheNamespace;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\Backend\ClusterFileBackend;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\Typo3MetadataCache;
+use Moselwal\Typo3ClusterCache\Infrastructure\LocalStore\EmptyDirPayloadStore;
 use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -39,7 +40,7 @@ readonly class BackendGarbageCollectRunner
         private ClockPort $clock,
     ) {}
 
-    public function run(CacheNamespace $namespace, bool $dryRun = false): GarbageCollectionReport
+    public function run(CacheNamespace $namespace, bool $dryRun = false, ?int $localMaxAgeSeconds = null): GarbageCollectionReport
     {
         $frontend = $this->cacheManager->getCache($namespace->cacheName);
         $clusterBackend = $frontend->getBackend();
@@ -52,6 +53,8 @@ readonly class BackendGarbageCollectRunner
         $service = new RunGarbageCollection(
             metadataCache: new Typo3MetadataCache($metadataFrontend, $namespace),
             clock: $this->clock,
+            localPurger: new EmptyDirPayloadStore($clusterBackend->getLocalPath()),
+            localMaxAgeSeconds: $localMaxAgeSeconds ?? RunGarbageCollection::DEFAULT_LOCAL_MAX_AGE_SECONDS,
         );
 
         return $service->execute($namespace, $dryRun);

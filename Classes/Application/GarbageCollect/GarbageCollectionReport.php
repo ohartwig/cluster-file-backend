@@ -14,6 +14,7 @@ final readonly class GarbageCollectionReport
         public string $namespace,
         public bool $dryRun,
         public int $durationMs,
+        public int $localFilesRemoved = 0,
     ) {}
 
     /**
@@ -25,6 +26,7 @@ final readonly class GarbageCollectionReport
             'namespace' => $this->namespace,
             'dryRun' => $this->dryRun,
             'durationMs' => $this->durationMs,
+            'localFilesRemoved' => $this->localFilesRemoved,
         ];
     }
 }

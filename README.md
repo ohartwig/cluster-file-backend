@@ -336,7 +336,7 @@ if ($metadata === null) {
 
 - `flush()` propagates to pod B immediately, no sync.
 - `flushByTag()` invalidates only matching entries.
-- Local file survives flush as harmless orphan.
+- Local file survives flush as an orphan until the local pass of `clusterfilebackend:gc` (also run by the scheduler's cache GC task via `collectGarbage()`) removes it after `--local-max-age` seconds (default 7 days) without a verified read.
 - Re-write after flush re-establishes consistency.
 - Flush works for arbitrary numbers of pods (no scaling assumption).
 
