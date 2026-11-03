@@ -265,7 +265,7 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
         $this->remover = new RemoveCacheEntry($this->metadataCache);
         $this->namespaceFlusher = new FlushNamespace($this->metadataCache, $this->metrics);
         $this->tagFlusher = new FlushByTag($this->metadataCache, $this->metrics);
-        $this->gcRunner = new RunGarbageCollection($this->metadataCache, $this->clock);
+        $this->gcRunner = new RunGarbageCollection($this->metadataCache, $this->clock, $this->localStore);
     }
 
     /**

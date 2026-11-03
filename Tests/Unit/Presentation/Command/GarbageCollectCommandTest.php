@@ -52,7 +52,7 @@ final class GarbageCollectCommandTest extends TestCase
             ->onlyMethods(['run'])
             ->getMock();
         $runner->method('run')->willReturnCallback(
-            static fn(CacheNamespace $namespace, bool $dryRun = false): GarbageCollectionReport => new RunGarbageCollection($cache, $clock)->execute($namespace, $dryRun),
+            static fn(CacheNamespace $namespace, bool $dryRun = false, ?int $localMaxAgeSeconds = null): GarbageCollectionReport => new RunGarbageCollection($cache, $clock)->execute($namespace, $dryRun),
         );
 
         return $runner;
@@ -63,6 +63,20 @@ final class GarbageCollectCommandTest extends TestCase
         $exitCode = $this->tester->execute([]);
         self::assertSame(64, $exitCode);
         self::assertStringContainsString('--namespace is required', $this->tester->getDisplay());
+    }
+
+    public function testInvalidLocalMaxAgeRejected(): void
+    {
+        $exitCode = $this->tester->execute(['--namespace' => 'cfb:testing:test:pages', '--local-max-age' => 'soon']);
+        self::assertSame(64, $exitCode);
+        self::assertStringContainsString('--local-max-age must be a positive number of seconds', $this->tester->getDisplay());
+    }
+
+    public function testValidLocalMaxAgeIsAccepted(): void
+    {
+        $exitCode = $this->tester->execute(['--namespace' => 'cfb:testing:test:pages', '--local-max-age' => '3600']);
+        self::assertSame(0, $exitCode);
+        self::assertStringContainsString('localFilesRemoved', $this->tester->getDisplay());
     }
 
     public function testInvalidNamespacePatternRejected(): void

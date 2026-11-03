@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace Moselwal\Typo3ClusterCache\Infrastructure\LocalStore;
 
 use Moselwal\Typo3ClusterCache\Domain\Contract\LocalPayloadStorePort;
+use Moselwal\Typo3ClusterCache\Domain\Contract\StalePayloadPurgerPort;
 use Moselwal\Typo3ClusterCache\Domain\Exception\LocalStoreWriteException;
 use Moselwal\Typo3ClusterCache\Domain\Exception\PayloadIntegrityException;
 use Moselwal\Typo3ClusterCache\Domain\Exception\PayloadNotFoundException;
@@ -16,8 +17,15 @@ use Moselwal\Typo3ClusterCache\Domain\Model\PayloadChecksum;
 use Moselwal\Typo3ClusterCache\Domain\Model\PayloadHash;
 use Moselwal\Typo3ClusterCache\Domain\Model\PayloadReference;
 
-final class EmptyDirPayloadStore implements LocalPayloadStorePort
+final class EmptyDirPayloadStore implements LocalPayloadStorePort, StalePayloadPurgerPort
 {
+    /**
+     * A verified read refreshes the file's mtime so live entries survive the
+     * stale-file purge. Throttled so a hot entry costs one touch per interval,
+     * not one per request.
+     */
+    private const int TOUCH_INTERVAL_SECONDS = 3600;
+
     /**
      * @param string $fileSuffix Appended to every payload filename. The
      *                           default empty string keeps backwards compatibility for binary
@@ -66,6 +74,10 @@ final class EmptyDirPayloadStore implements LocalPayloadStorePort
         $actual = PayloadChecksum::ofBytes($bytes);
         if (!$actual->equals($checksum)) {
             throw new PayloadIntegrityException(\sprintf('checksum mismatch for hash %s', $hash->prefix(12)));
+        }
+        $mtime = @filemtime($path);
+        if (false !== $mtime && $mtime < time() - self::TOUCH_INTERVAL_SECONDS) {
+            @touch($path);
         }
 
         return $bytes;
@@ -162,5 +174,31 @@ final class EmptyDirPayloadStore implements LocalPayloadStorePort
             }
             yield new PayloadHash($name);
         }
+    }
+
+    public function purgeOlderThan(int $cutoff): int
+    {
+        if (!is_dir($this->localPath)) {
+            return 0;
+        }
+        $removed = 0;
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($this->localPath, \FilesystemIterator::SKIP_DOTS),
+        );
+        foreach ($iterator as $file) {
+            // Only payload files (64 hex characters, optional suffix); never
+            // temp files, the probe sentinel, symlinks or anything else.
+            if (!$file instanceof \SplFileInfo || $file->isLink() || !$file->isFile()) {
+                continue;
+            }
+            if (1 !== preg_match('/^[a-f0-9]{64}(\.[a-z0-9]{1,16})?$/', $file->getFilename())) {
+                continue;
+            }
+            if ($file->getMTime() < $cutoff && @unlink($file->getPathname())) {
+                ++$removed;
+            }
+        }
+
+        return $removed;
     }
 }
