@@ -106,4 +106,10 @@ final class RunGarbageCollectionTest extends TestCase
             exec('rm -rf ' . escapeshellarg($dir));
         }
     }
+
+    public function testRejectsNonPositiveLocalMaxAge(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new RunGarbageCollection(new FakeMetadataCache(), new FakeClock(1_700_000_000), null, 0);
+    }
 }

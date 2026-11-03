@@ -65,6 +65,40 @@ final class EmptyDirPayloadStoreTest extends TestCase
         self::assertFileExists($foreign);
     }
 
+    public function testPurgeOnMissingDirectoryRemovesNothing(): void
+    {
+        $store = new EmptyDirPayloadStore($this->tmpDir . '/does-not-exist');
+        self::assertSame(0, $store->purgeOlderThan(PHP_INT_MAX));
+    }
+
+    public function testPurgeLeavesSymlinksAlone(): void
+    {
+        $store = new EmptyDirPayloadStore($this->tmpDir);
+        $hash = new PayloadHash(hash('sha256', 'target'));
+        $store->write($hash, 'target');
+        $link = \dirname($store->pathFor($hash)) . '/' . hash('sha256', 'link');
+        symlink($store->pathFor($hash), $link);
+
+        // The cutoff is in the future: the real file goes, the link stays.
+        self::assertSame(1, $store->purgeOlderThan(PHP_INT_MAX));
+        self::assertTrue(is_link($link));
+    }
+
+    public function testVerifiedReadRefreshesAStaleMtime(): void
+    {
+        $store = new EmptyDirPayloadStore($this->tmpDir);
+        $bytes = 'live';
+        $hash = new PayloadHash(hash('sha256', $bytes));
+        $store->write($hash, $bytes);
+        touch($store->pathFor($hash), time() - 7200);
+        clearstatcache();
+
+        $store->readVerified($hash, PayloadChecksum::ofBytes($bytes));
+
+        clearstatcache();
+        self::assertGreaterThan(time() - 60, filemtime($store->pathFor($hash)));
+    }
+
     public function testReadVerifiedThrowsOnMissingFile(): void
     {
         $store = new EmptyDirPayloadStore($this->tmpDir);
