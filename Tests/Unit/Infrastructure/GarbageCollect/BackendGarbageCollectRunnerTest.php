@@ -176,7 +176,7 @@ final class BackendGarbageCollectRunnerTest extends TestCase
         $report = $this->runner($this->clusterBackend())->run($this->namespace());
 
         self::assertSame(
-            ['namespace', 'dryRun', 'durationMs'],
+            ['namespace', 'dryRun', 'durationMs', 'localFilesRemoved'],
             array_keys($report->toArray()),
         );
         self::assertSame('cfb:prod:site:pages', $report->toArray()['namespace']);

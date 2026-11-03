@@ -78,7 +78,7 @@ final class RunGarbageCollectionTest extends TestCase
             $service = new RunGarbageCollection(new FakeMetadataCache(), $clock, $store);
             $report = $service->execute(new CacheNamespace(EnvironmentName::Testing, 'test', 'pages'));
 
-            $left = array_map(static fn (PayloadHash $h): string => $h->digest, iterator_to_array($store->iterateAll(), false));
+            $left = array_map(static fn(PayloadHash $h): string => $h->digest, iterator_to_array($store->iterateAll(), false));
             self::assertSame([$current->digest], $left);
             self::assertSame(4, $report->localFilesRemoved);
         } finally {
@@ -97,7 +97,7 @@ final class RunGarbageCollectionTest extends TestCase
             $store->write($hash, 'x');
             touch($store->pathFor($hash), 1_000_000);
 
-            $report = (new RunGarbageCollection(new FakeMetadataCache(), new FakeClock(1_700_000_000), $store))
+            $report = new RunGarbageCollection(new FakeMetadataCache(), new FakeClock(1_700_000_000), $store)
                 ->execute(new CacheNamespace(EnvironmentName::Testing, 'test', 'pages'), dryRun: true);
 
             self::assertTrue($store->exists($hash));
