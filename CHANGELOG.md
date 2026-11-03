@@ -1,3 +1,14 @@
+## [2.6.37](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.36...v2.6.37) (2026-11-03)
+
+### :bug: Fixes
+
+* **security:** AUD-075 F01 — reclaim superseded pod-local payload files in GC ([048b161](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/048b161ff3ee76f8cf5bbf9d3245622e78b87f3f))
+
+### :white_check_mark: Tests
+
+* **security:** AUD-075 F01 — cover purge edge cases, touch-on-read, command option ([f98984c](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/f98984c33c9d040f3a51edbda6f37a8ba3b6e402))
+* **security:** AUD-075 F01 — adapt report key test, fix style ([fe7810a](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/fe7810af8e52aef023860adccb6577358c222004))
+
 ## [2.6.36](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.35...v2.6.36) (2026-11-03)
 
 ### :repeat: Chores
