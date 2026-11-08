@@ -74,6 +74,11 @@
             "default": 4194304,
             "description": "Soft memory budget for the payload L1 in bytes (default 4 MB). Entries that would push the total above this are evicted in insertion order. A single payload larger than this limit bypasses the L1 entirely (rather than evicting everything else). 0 disables the bytes-cap; the entry count then becomes the only limit."
         },
+        "crossRequestMetadataMemo": {
+            "type": "boolean",
+            "default": false,
+            "description": "Serve metadata from a process-wide memo (FrankenPHP worker lifetime) that is checked against a cluster-wide generation value once per request, instead of reading every identifier from the metadata cache on every request. Every pod writing to the same metadata cache MUST run a package version that maintains the generation (>= the version introducing this option) before this is switched on; older pods mutate metadata without announcing it, and pods with the memo would not notice. See README, section 'Cross-request metadata memo'."
+        },
         "backendVersionEnvVar": {
             "type": "string",
             "pattern": "^[A-Z_][A-Z0-9_]{0,63}$",

@@ -28,6 +28,8 @@ use Moselwal\Typo3ClusterCache\Domain\Model\CompressionAlgo;
 use Moselwal\Typo3ClusterCache\Domain\Model\CompressionName;
 use Moselwal\Typo3ClusterCache\Domain\Model\SerializerName;
 use Moselwal\Typo3ClusterCache\Domain\Model\TagSet;
+use Moselwal\Typo3ClusterCache\Infrastructure\Cache\CrossRequestMetadataMemo;
+use Moselwal\Typo3ClusterCache\Infrastructure\Cache\GenerationGuardedMetadataCache;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\PayloadL1Cache;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\RequestScopedMetadataCache;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\Typo3MetadataCache;
@@ -93,6 +95,7 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
     private readonly int $minCompressedBytes;
     private readonly int $payloadL1MaxEntries;
     private readonly int $payloadL1MaxBytes;
+    private readonly bool $crossRequestMetadataMemo;
     private readonly FrontendInterface $metadataCacheFrontend;
     private EmptyDirPayloadStore $localStore;
     /** @var array<string, CompressorPort> Lookup CompressionAlgo->value → codec */
@@ -169,6 +172,7 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
         $this->minCompressedBytes = (int) $normalized['minCompressedBytes'];
         $this->payloadL1MaxEntries = (int) $normalized['payloadL1MaxEntries'];
         $this->payloadL1MaxBytes = (int) $normalized['payloadL1MaxBytes'];
+        $this->crossRequestMetadataMemo = true === $normalized['crossRequestMetadataMemo'];
         $this->payloadL1 = new PayloadL1Cache($this->payloadL1MaxEntries, $this->payloadL1MaxBytes);
         $this->cfbLogger = $this->logger ?? new NullLogger();
 
@@ -225,13 +229,31 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
     {
         // Request-scoped memo shared by every metadata reader and writer of
         // this backend instance. In FrankenPHP worker mode TYPO3 re-bootstraps
-        // per request (see `Moselwal\FrankenPHP\Runtime\FrontendWorker::
+        // per request (see `Koh\FrankenPHP\Runtime\FrontendWorker::
         // handleRequest()`), so a fresh CacheManager and a fresh backend —
         // and therefore a fresh memo — exist on every request. Rewiring in
         // `setCache()` also starts a fresh memo.
-        $this->metadataCache = new RequestScopedMetadataCache(new Typo3MetadataCache(
-            $this->metadataCacheFrontend,
-            $this->namespace,
+        //
+        // Below it, the generation guard keeps the store-wide generation
+        // current on every mutation and — with `crossRequestMetadataMemo`
+        // on — serves metadata from a process-wide memo for as long as that
+        // generation is unchanged: one generation read per request instead
+        // of one read per identifier. The metadata frontend object is the
+        // request scope: TYPO3 creates it with each CacheManager, i.e. per
+        // request, and the backends of that CacheManager share one check.
+        $store = new Typo3MetadataCache($this->metadataCacheFrontend, $this->namespace);
+        $this->metadataCache = new RequestScopedMetadataCache(new GenerationGuardedMetadataCache(
+            inner: $store,
+            generation: $store,
+            clock: $this->clock,
+            metrics: $this->metrics,
+            labels: [
+                'cacheName' => $this->namespace->cacheName,
+                'namespace' => $this->namespace->toKvKeyPrefix(),
+            ],
+            memo: $this->crossRequestMetadataMemo ? CrossRequestMetadataMemo::forStore($this->metadataCacheIdentifier) : null,
+            requestScope: $this->metadataCacheFrontend,
+            logger: $this->cfbLogger,
         ));
         $this->writer = new WriteCacheEntry(
             metadataCache: $this->metadataCache,
@@ -277,6 +299,15 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
     public function getLocalPath(): string
     {
         return $this->localPath;
+    }
+
+    /**
+     * Whether metadata is served from the process-wide, generation-checked
+     * memo (option `crossRequestMetadataMemo`).
+     */
+    public function isCrossRequestMetadataMemoEnabled(): bool
+    {
+        return $this->crossRequestMetadataMemo;
     }
 
     public function getNamespaceEnvironment(): EnvironmentName

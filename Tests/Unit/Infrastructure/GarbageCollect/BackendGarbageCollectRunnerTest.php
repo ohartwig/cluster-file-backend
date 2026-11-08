@@ -120,6 +120,34 @@ final class BackendGarbageCollectRunnerTest extends TestCase
         return new CacheNamespace(EnvironmentName::Production, 'site', 'pages');
     }
 
+    /**
+     * Garbage collection mutates the metadata store, so pods holding a
+     * cross-request memo must learn about it like about any other change.
+     */
+    #[Test]
+    public function garbageCollectionMovesTheGeneration(): void
+    {
+        $backend = $this->clusterBackend();
+        $metadata = new FakeMetadataFrontend();
+        $cluster = self::createStub(FrontendInterface::class);
+        $cluster->method('getBackend')->willReturn($backend);
+        $cacheManager = new class ($cluster, $metadata) extends CacheManager {
+            public function __construct(private FrontendInterface $cluster, private FrontendInterface $metadata)
+            {
+                parent::__construct();
+            }
+
+            public function getCache(string $identifier): FrontendInterface
+            {
+                return 'cluster_meta' === $identifier ? $this->metadata : $this->cluster;
+            }
+        };
+
+        new BackendGarbageCollectRunner($cacheManager, new FakeClock())->run($this->namespace());
+
+        self::assertSame(2, $metadata->generationWrites);
+    }
+
     #[Test]
     public function aClusterCacheProducesAReportForTheRequestedNamespace(): void
     {

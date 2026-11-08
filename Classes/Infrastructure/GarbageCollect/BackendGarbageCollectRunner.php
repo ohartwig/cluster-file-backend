@@ -13,7 +13,9 @@ use Moselwal\Typo3ClusterCache\Application\GarbageCollect\RunGarbageCollection;
 use Moselwal\Typo3ClusterCache\Domain\Contract\ClockPort;
 use Moselwal\Typo3ClusterCache\Domain\Model\CacheNamespace;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\Backend\ClusterFileBackend;
+use Moselwal\Typo3ClusterCache\Infrastructure\Cache\GenerationGuardedMetadataCache;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\Typo3MetadataCache;
+use Moselwal\Typo3ClusterCache\Infrastructure\Observability\PrometheusMetrics;
 use Moselwal\Typo3ClusterCache\Infrastructure\LocalStore\EmptyDirPayloadStore;
 use TYPO3\CMS\Core\Cache\CacheManager;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
@@ -49,9 +51,13 @@ readonly class BackendGarbageCollectRunner
         }
 
         $metadataFrontend = $this->resolveMetadataFrontend($clusterBackend);
+        $store = new Typo3MetadataCache($metadataFrontend, $namespace);
 
         $service = new RunGarbageCollection(
-            metadataCache: new Typo3MetadataCache($metadataFrontend, $namespace),
+            // Garbage collection mutates the store, so it goes through the
+            // generation guard like every other mutation: pods with the
+            // cross-request memo drop it at their next request.
+            metadataCache: new GenerationGuardedMetadataCache($store, $store, $this->clock, new PrometheusMetrics()),
             clock: $this->clock,
             localPurger: new EmptyDirPayloadStore($clusterBackend->getLocalPath()),
             localMaxAgeSeconds: $localMaxAgeSeconds ?? RunGarbageCollection::DEFAULT_LOCAL_MAX_AGE_SECONDS,

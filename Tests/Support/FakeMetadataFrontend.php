@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 namespace Moselwal\Typo3ClusterCache\Tests\Support;
 
+use Moselwal\Typo3ClusterCache\Infrastructure\Cache\Typo3MetadataCache;
 use TYPO3\CMS\Core\Cache\Backend\BackendInterface;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 
@@ -26,8 +27,18 @@ final class FakeMetadataFrontend implements FrontendInterface
 
     public bool $offline = false;
 
-    /** Number of `get()` calls — each one is a round trip in production. */
+    /**
+     * Number of `get()` calls for metadata entries — each one is a round
+     * trip in production. Reads of the generation key are counted apart.
+     */
     public int $reads = 0;
+
+    public int $generationReads = 0;
+
+    public int $generationWrites = 0;
+
+    /** @var array<string, array{tags: array<mixed>, lifetime: mixed}> tags and lifetime of the last write per key */
+    public array $writeOptions = [];
 
     public function __construct(private readonly string $identifier = 'cluster_meta') {}
 
@@ -45,7 +56,11 @@ final class FakeMetadataFrontend implements FrontendInterface
     public function set($entryIdentifier, $data, array $tags = [], $lifetime = null): void
     {
         $this->guard();
+        if (Typo3MetadataCache::GENERATION_KEY === $entryIdentifier) {
+            ++$this->generationWrites;
+        }
         $this->entries[$entryIdentifier] = $data;
+        $this->writeOptions[$entryIdentifier] = ['tags' => $tags, 'lifetime' => $lifetime];
     }
 
     private function guard(): void
@@ -57,7 +72,11 @@ final class FakeMetadataFrontend implements FrontendInterface
 
     public function get($entryIdentifier): mixed
     {
-        ++$this->reads;
+        if (Typo3MetadataCache::GENERATION_KEY === $entryIdentifier) {
+            ++$this->generationReads;
+        } else {
+            ++$this->reads;
+        }
         $this->guard();
 
         return $this->entries[$entryIdentifier] ?? false;

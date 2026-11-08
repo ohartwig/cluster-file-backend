@@ -38,6 +38,19 @@ final class OptionsValidatorTest extends TestCase
         self::assertSame('igbinary', $normalized['serializer']);
         self::assertSame(3600, $normalized['defaultLifetimeSeconds']);
         self::assertSame(10_485_760, $normalized['maxPayloadBytes']);
+        self::assertFalse($normalized['crossRequestMetadataMemo'], 'opt-in: safe only once every pod maintains the generation');
+    }
+
+    public function testCrossRequestMetadataMemoMustBeABoolean(): void
+    {
+        $this->expectException(InvalidCacheException::class);
+
+        $this->validator->validateAndApplyDefaults([
+            'localPath' => '/app/var/cache/cluster/pages',
+            'metadataCacheIdentifier' => 'cluster_meta',
+            'namespace' => ['environment' => 'prod', 'instance' => 'website-a'],
+            'crossRequestMetadataMemo' => 'yes',
+        ]);
     }
 
     public function testMissingLocalPathThrows(): void

@@ -11,6 +11,8 @@ namespace Moselwal\Typo3ClusterCache\Tests\Unit\Infrastructure\Cache\Backend;
 use Moselwal\Typo3ClusterCache\Domain\Contract\ClockPort;
 use Moselwal\Typo3ClusterCache\Domain\Contract\MetricsPort;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\Backend\ClusterFileBackend;
+use Moselwal\Typo3ClusterCache\Infrastructure\Cache\CrossRequestMetadataMemo;
+use Moselwal\Typo3ClusterCache\Infrastructure\Cache\Typo3MetadataCache;
 use Moselwal\Typo3ClusterCache\Tests\Support\FakeClock;
 use Moselwal\Typo3ClusterCache\Tests\Support\FakeMetadataFrontend;
 use Moselwal\Typo3ClusterCache\Tests\Support\FakeMetrics;
@@ -64,6 +66,7 @@ final class ClusterFileBackendTest extends TestCase
     protected function tearDown(): void
     {
         GeneralUtility::purgeInstances();
+        CrossRequestMetadataMemo::resetRegistry();
 
         if (\is_dir($this->localPath)) {
             $this->removeDirectory($this->localPath);
@@ -165,6 +168,68 @@ final class ClusterFileBackendTest extends TestCase
         self::assertTrue($nextRequest->has('entry-a'));
         self::assertTrue($nextRequest->has('entry-a'));
         self::assertSame(3, $this->metadataFrontend->reads, 'the writer checks once, the next request reads once');
+    }
+
+    #[Test]
+    public function theCrossRequestMemoIsOffUnlessConfigured(): void
+    {
+        self::assertFalse($this->backend()->isCrossRequestMetadataMemoEnabled());
+        self::assertTrue($this->backend(['crossRequestMetadataMemo' => true])->isCrossRequestMetadataMemoEnabled());
+    }
+
+    /**
+     * Starts the next request: TYPO3 builds a new CacheManager and with it a
+     * new metadata frontend object over the same store.
+     */
+    private function nextRequest(): void
+    {
+        $previous = $this->metadataFrontend;
+        $this->metadataFrontend = new FakeMetadataFrontend();
+        $this->metadataFrontend->entries = &$previous->entries;
+        /* @phpstan-ignore staticMethod.internal (the documented way to place a double) */
+        GeneralUtility::setSingletonInstance(CacheManager::class, $this->cacheManagerReturning($this->metadataFrontend));
+    }
+
+    #[Test]
+    public function withTheCrossRequestMemoASteadyStateRequestReadsOnlyTheGeneration(): void
+    {
+        $options = ['crossRequestMetadataMemo' => true];
+        $this->backend($options)->set('entry-a', 'payload');
+        $this->nextRequest();
+        self::assertTrue($this->backend($options)->has('entry-a'));
+        self::assertFalse($this->backend($options)->has('never-written'));
+
+        $this->nextRequest();
+        $pages = $this->backend($options);
+        $typoscript = $this->backend($options);
+        self::assertTrue($pages->has('entry-a'));
+        self::assertFalse($typoscript->has('never-written'));
+        self::assertSame('payload', $pages->get('entry-a'));
+
+        self::assertSame(0, $this->metadataFrontend->reads, 'no entry read');
+        self::assertSame(1, $this->metadataFrontend->generationReads, 'one generation read for every cache of the request');
+        $checks = array_values(array_filter($this->metrics->counters, static fn(array $c): bool => 'metadata_memo_check_total' === $c['name']));
+        self::assertSame(
+            ['cacheName' => 'unbound', 'namespace' => 'cfb:prod:site:unbound', 'result' => 'reuse'],
+            $checks[\count($checks) - 1]['labels'],
+        );
+    }
+
+    #[Test]
+    public function everyWriteMovesTheGenerationEvenWithoutTheMemo(): void
+    {
+        $backend = $this->backend();
+
+        $backend->set('entry-a', 'payload');
+        $backend->flush();
+
+        self::assertSame(4, $this->metadataFrontend->generationWrites, 'announce and publish, twice');
+        self::assertSame(
+            ['tags' => [], 'lifetime' => 0],
+            $this->metadataFrontend->writeOptions[Typo3MetadataCache::GENERATION_KEY],
+            'untagged, so a namespace flush keeps it; no expiry',
+        );
+        self::assertSame(2, $this->metadataFrontend->generationReads, 'only the publish steps read it');
     }
 
     #[Test]

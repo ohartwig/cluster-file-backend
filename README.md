@@ -52,6 +52,7 @@ written files.
 │  OPcache (compiled PHP code)         → PhpFrontend `.php` files │
 │  Payload L1 (decompressed bytes)     → VariableFrontend caches  │
 │  Metadata L1 (CacheMetadata objects) → all caches               │
+│  Metadata memo across requests (opt-in) → all caches            │
 └─────────────────────────────────────────────────────────────────┘
                               ▲
 ┌─ Pod-local emptyDir ────────────────────────────────────────────┐
@@ -339,6 +340,102 @@ if ($metadata === null) {
 - Local file survives flush as an orphan until the local pass of `clusterfilebackend:gc` (also run by the scheduler's cache GC task via `collectGarbage()`) removes it after `--local-max-age` seconds (default 7 days) without a verified read.
 - Re-write after flush re-establishes consistency.
 - Flush works for arbitrary numbers of pods (no scaling assumption).
+
+## Cross-request metadata memo
+
+Without it, every request reads the metadata of every identifier it
+touches once: that read is how a pod learns about other pods' writes and
+flushes. A warm, uncached page render costs some 40 such reads. With the
+option `crossRequestMetadataMemo` on, a request reads **one** value
+instead — the generation of the metadata store — and serves metadata from
+a memo kept in the PHP process (in FrankenPHP worker mode: across
+requests) for as long as that generation is unchanged.
+
+```php
+'options' => [
+    // …
+    'crossRequestMetadataMemo' => true,   // default false, see "Rolling it out"
+],
+```
+
+The gain needs a process that serves many requests: FrankenPHP worker
+mode. In classic mode (one PHP state per request), PHP-FPM or a CLI run the
+memo starts empty every time, so the option only adds the one generation
+read per request.
+
+### How it works
+
+- **Generation.** One key in the metadata cache
+  (`__cfb_generation_v1__`), shared by every cache that uses that metadata
+  cache. It is store-wide on purpose: entries are keyed by the bare cache
+  identifier, so all caches share one key space, and the namespace
+  `instance` may differ between pods (it defaults to the hostname in some
+  setups).
+- **Every mutation** through this package — `set`, `remove`, `flush`,
+  `flushByTag(s)`, `collectGarbage` (backend and CLI), broken-markers —
+  runs as: write `dirty-<random>`; mutate; read the generation and, unless
+  it is *another* writer's dirty marker, write a fresh `<random>`. This
+  happens whether or not the memo is on. Cost: one read and two small
+  writes per mutation.
+- **Every request** that touches metadata reads the generation once
+  (shared by all caches of the request). Same clean value as the memo was
+  filled under, and the memo younger than 5 minutes → serve from the memo.
+  Different clean value → empty the memo, refill it under the new value.
+  Dirty, absent or unreadable → empty it and read per entry, as without
+  the memo.
+- Entries are served only until their own `expiresAt`; `broken` markers are
+  never memoised; the process's own mutations empty its memo for the rest
+  of the request (the request-scoped memo keeps read-your-writes).
+- The memo holds at most 2048 entries per metadata cache and process
+  (about 3 MiB); beyond that, further identifiers are read per request.
+
+### Why it is as consistent as per-entry reads
+
+A change completed on pod B is visible on pod A at A's next request.
+Generations are random, so each value is written exactly once. Entries are
+memoised only after the generation check, so everything in a memo filled
+under generation G was read after G was written. Every mutation is
+followed by a write of a value other than G — its own publish step, or
+(when it defers to another writer's dirty marker) that writer's later
+publish. So if A's next request still reads G, every mutation completed
+by then wrote its metadata before G existed, i.e. before A read it.
+
+Failure cases:
+
+| Case | Behaviour |
+|---|---|
+| Dirty-marker write fails | The mutation is not attempted; the error surfaces exactly like a metadata-cache outage today. |
+| Mutation fails half-way | The publish step still runs. |
+| Publish write fails / process dies mid-mutation | The generation stays dirty: every pod reads per entry (pre-memo behaviour) until the next successful mutation. Counted as `metadata_generation_publish_total{result=error}`. |
+| Generation evicted, expired or flushed with the whole metadata cache | Absent = per-entry reads until the next mutation. |
+| Entry expired or evicted by the store without a mutation | The memo honours `expiresAt`; anything else is re-read after at most 5 minutes. |
+| Two pods mutate concurrently **and** the final publish of one of them fails | The one case the protocol cannot exclude without compare-and-set: a reader may keep a pre-mutation entry for at most 5 minutes (the memo's maximum age). |
+
+### Rolling it out (version skew)
+
+Pods that run an older package version mutate the metadata cache
+**without** touching the generation. A pod with the memo on would not
+notice those changes (an editor's save on an old pod would stay invisible
+on a new pod). Pods with the new version but the memo off maintain the
+generation, so they are safe neighbours. Hence:
+
+1. Deploy this version with the option off (the default). Every pod now
+   maintains the generation; behaviour is otherwise unchanged.
+2. Once no pod, worker or cron job runs an older version, switch the
+   option on. A rolling restart mixing "on" and "off" pods is safe.
+3. To roll back to an older package version, switch the option off first.
+
+### Metrics
+
+| Counter | Labels |
+|---|---|
+| `metadata_memo_check_total` | `result`: `reuse` (memo served), `reset` (generation changed), `bypass` (dirty/absent/unreadable) |
+| `metadata_memo_hit_total` / `metadata_memo_miss_total` | per lookup below the request-scoped memo |
+| `metadata_memo_full_total` | identifier not memoised because the memo is full |
+| `metadata_generation_publish_total` | `result`: `published`, `deferred`, `error` |
+
+`ClusterFileBackend::isCrossRequestMetadataMemoEnabled()` tells whether a
+cache runs with the memo.
 
 ## Complexity — why it's faster in a cluster
 
