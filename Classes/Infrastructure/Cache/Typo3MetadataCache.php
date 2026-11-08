@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace Moselwal\Typo3ClusterCache\Infrastructure\Cache;
 
 use Moselwal\Typo3ClusterCache\Domain\Contract\MetadataCachePort;
+use Moselwal\Typo3ClusterCache\Domain\Contract\MetadataGenerationPort;
 use Moselwal\Typo3ClusterCache\Domain\Model\CacheIdentifier;
 use Moselwal\Typo3ClusterCache\Domain\Model\CacheMetadata;
 use Moselwal\Typo3ClusterCache\Domain\Model\CacheNamespace;
@@ -26,9 +27,25 @@ use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
  * Values are stored as arrays (`CacheMetadata::toKvPayload()` /
  * `::fromKvPayload()`) through the frontend; a
  * {@see \TYPO3\CMS\Core\Cache\Frontend\VariableFrontend} is the natural choice.
+ *
+ * It also stores the store-wide generation ({@see MetadataGenerationPort})
+ * under one fixed key in the same frontend. The key is deliberately not
+ * namespaced: metadata entries are keyed by the bare cache identifier, so
+ * every cache sharing the frontend writes into one key space, and the
+ * generation has to cover exactly that space. Neither the cache name nor
+ * the namespace instance (which defaults to the pod's hostname in some
+ * setups) may take part in the key, or pods would watch different keys.
  */
-final readonly class Typo3MetadataCache implements MetadataCachePort
+final readonly class Typo3MetadataCache implements MetadataCachePort, MetadataGenerationPort
 {
+    /**
+     * Key of the generation value. Matches the TYPO3 entry-identifier
+     * pattern and cannot collide with a cache identifier in practice. The
+     * `v1` names the protocol; a future incompatible protocol takes a new
+     * key so that old and new pods never misread each other's values.
+     */
+    public const string GENERATION_KEY = '__cfb_generation_v1__';
+
     /**
      * Tag prefix used to namespace every entry by its owning cache. Every
      * `set()` writes an additional `__cfb_ns__{cacheName}` tag; `flush()`
@@ -135,6 +152,22 @@ final readonly class Typo3MetadataCache implements MetadataCachePort
     public function collectGarbage(): void
     {
         $this->cache->collectGarbage();
+    }
+
+    public function readGeneration(): ?string
+    {
+        $raw = $this->cache->get(self::GENERATION_KEY);
+
+        return \is_string($raw) && '' !== $raw ? $raw : null;
+    }
+
+    public function writeGeneration(string $generation): void
+    {
+        // No tags: a namespace flush (flushByTag on the namespace tag) must
+        // not take the generation with it. Lifetime 0 = no expiry (backends
+        // that cap "unlimited", like KeyValueBackend at one year, only make
+        // the key disappear, which readers treat as "unknown" — safe).
+        $this->cache->set(self::GENERATION_KEY, $generation, [], 0);
     }
 
     /**

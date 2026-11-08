@@ -21,6 +21,7 @@ use Moselwal\Typo3ClusterCache\Domain\Model\PayloadHash;
 use Moselwal\Typo3ClusterCache\Domain\Model\SerializerName;
 use Moselwal\Typo3ClusterCache\Domain\Model\TagSet;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\Typo3MetadataCache;
+use Moselwal\Typo3ClusterCache\Tests\Support\FakeMetadataFrontend;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use TYPO3\CMS\Core\Cache\Backend\TransientMemoryBackend;
@@ -30,12 +31,14 @@ use TYPO3\CMS\Core\Cache\Frontend\VariableFrontend;
 final class Typo3MetadataCacheTest extends TestCase
 {
     private Typo3MetadataCache $cache;
+    private VariableFrontend $frontend;
 
     protected function setUp(): void
     {
         $backend = new TransientMemoryBackend();
         $frontend = new VariableFrontend('cluster_meta_test', $backend);
         $backend->setCache($frontend);
+        $this->frontend = $frontend;
         $this->cache = new Typo3MetadataCache(
             $frontend,
             new CacheNamespace(EnvironmentName::Testing, 'site', 'pages'),
@@ -69,6 +72,48 @@ final class Typo3MetadataCacheTest extends TestCase
 
         self::assertTrue($this->cache->remove($id));
         self::assertNull($this->cache->get($id));
+    }
+
+    public function testGenerationIsAbsentUntilWritten(): void
+    {
+        self::assertNull($this->cache->readGeneration());
+
+        $this->cache->writeGeneration('g1');
+
+        self::assertSame('g1', $this->cache->readGeneration());
+    }
+
+    public function testGenerationIsStoreWideAndSurvivesANamespaceFlush(): void
+    {
+        $this->cache->writeGeneration('g1');
+        $sibling = new Typo3MetadataCache(
+            $this->frontend,
+            new CacheNamespace(EnvironmentName::Testing, 'other-pod', 'typoscript'),
+        );
+
+        $this->cache->flush();
+
+        self::assertSame('g1', $sibling->readGeneration(), 'same key for every cache and instance of the store');
+        self::assertNull($this->cache->get(new CacheIdentifier(Typo3MetadataCache::GENERATION_KEY)), 'not a metadata entry');
+    }
+
+    public function testGenerationIsWrittenUntaggedAndWithoutExpiry(): void
+    {
+        $frontend = new FakeMetadataFrontend();
+        $cache = new Typo3MetadataCache($frontend, new CacheNamespace(EnvironmentName::Testing, 'site', 'pages'));
+
+        $cache->writeGeneration('g1');
+
+        self::assertSame(['tags' => [], 'lifetime' => 0], $frontend->writeOptions[Typo3MetadataCache::GENERATION_KEY]);
+    }
+
+    public function testAnythingButANonEmptyStringIsNoGeneration(): void
+    {
+        $this->frontend->set(Typo3MetadataCache::GENERATION_KEY, ['not', 'a', 'string']);
+        self::assertNull($this->cache->readGeneration());
+
+        $this->frontend->set(Typo3MetadataCache::GENERATION_KEY, '');
+        self::assertNull($this->cache->readGeneration());
     }
 
     public function testFlushRemovesAllEntries(): void

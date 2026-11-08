@@ -21,7 +21,12 @@ Blick. Detail-Spezifikationen liegen in `specs/001-cluster-cache-backend/`.
 │   ClusterFileBackend       — implementiert BackendInterface +          │
 │                              TaggableBackendInterface                  │
 │   Typo3MetadataCache       — Adapter MetadataCachePort ←→ TYPO3-       │
-│                              FrontendInterface (beliebiges Backend)    │
+│                              FrontendInterface (beliebiges Backend),   │
+│                              hält auch die Store-Generation            │
+│   RequestScopedMetadataCache — Metadaten-Memo je Request               │
+│   GenerationGuardedMetadataCache — Generation bei jeder Mutation neu,  │
+│                              optional Memo über Requests hinweg        │
+│   CrossRequestMetadataMemo — prozessweiter Zustand dieses Memos        │
 │   EmptyDirPayloadStore     — atomares pod-lokales File-IO              │
 │   {Zstd,Gzip,Null}Compr.   — Compressor-Adapter                        │
 │   SystemClock              — ClockPort                                 │
@@ -45,6 +50,7 @@ Blick. Detail-Spezifikationen liegen in `specs/001-cluster-cache-backend/`.
 │ Domain                                                                 │
 │   Contracts (Ports):                                                   │
 │     MetadataCachePort      — die einzige Sicht auf den Metadata-Store  │
+│     MetadataGenerationPort — Generationswert dieses Stores             │
 │     LocalPayloadStorePort  — pod-lokales File-IO                       │
 │     CompressorPort         — Compressor-Vertrag                        │
 │     ClockPort              — zentrale Zeit                             │
@@ -105,6 +111,24 @@ TYPO3 CacheManager
                  └─► sha256(bytes) == checksum?  ← Mismatch → state=Broken, Cache-Miss
             ↳ Hit-Fall: CompressorPort::decompress(bytes) → return
 ```
+
+### Metadaten-Lesepfad und Generation
+
+```text
+ClusterFileBackend (has/get/requireOnce/set/…)
+  └─► RequestScopedMetadataCache        ← je Backend-Instanz = je Request
+       └─► GenerationGuardedMetadataCache
+            ├─ Mutation: Generation := dirty-<zufall>, Mutation,
+            │            Generation := <zufall> (außer fremder dirty-Marker)
+            └─ Lesen (nur mit crossRequestMetadataMemo):
+               einmal je Request Generation lesen;
+               gleich + Memo < 5 min → CrossRequestMetadataMemo,
+               sonst Memo leeren (dirty/fehlend: ohne Memo lesen)
+                 └─► Typo3MetadataCache → Metadaten-Frontend
+```
+
+Begründung, Konsistenzargument und Rollout bei Versionsmischung: README,
+Abschnitt „Cross-request metadata memo“.
 
 ### Garbage Collection (CLI)
 
