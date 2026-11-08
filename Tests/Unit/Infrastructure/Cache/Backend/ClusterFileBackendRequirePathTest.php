@@ -154,6 +154,26 @@ final class ClusterFileBackendRequirePathTest extends TestCase
         return $found[0];
     }
 
+    /**
+     * The code-cache cycle TYPO3 runs on a cold entry — probe, rebuild,
+     * probe again — used to cost three metadata round trips: the probe, the
+     * writer's existing-entry check, and a re-probe after the write. All
+     * three now share one request-scoped memo, so only the first reaches the
+     * metadata cache.
+     */
+    #[Test]
+    public function aColdProbeRebuildAndReprobeCostOneMetadataRead(): void
+    {
+        $backend = $this->phpBackend();
+
+        self::assertFalse($backend->requireOnce('entry-a'));
+        $backend->set('entry-a', "<?php\nreturn ['answer' => 42];\n");
+        self::assertSame(['answer' => 42], $backend->requireOnce('entry-a'));
+        self::assertTrue($backend->has('entry-a'));
+
+        self::assertSame(1, $this->metadataFrontend->reads);
+    }
+
     #[Test]
     public function requireOnceEvaluatesTheStoredPhpAndReturnsItsValue(): void
     {

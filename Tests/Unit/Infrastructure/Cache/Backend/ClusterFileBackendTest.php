@@ -145,6 +145,57 @@ final class ClusterFileBackendTest extends TestCase
         self::assertTrue($backend->has('entry-a'));
     }
 
+    /**
+     * Repeat lookups within one request are answered from the request-scoped
+     * memo — misses included — while a new backend (the next request) asks
+     * the metadata cache again.
+     */
+    #[Test]
+    public function repeatedLookupsInOneRequestReadTheMetadataOnce(): void
+    {
+        $backend = $this->backend();
+
+        self::assertFalse($backend->has('never-written'));
+        self::assertFalse($backend->has('never-written'));
+        self::assertFalse($backend->get('never-written'));
+        self::assertSame(1, $this->metadataFrontend->reads);
+
+        $this->backend()->set('entry-a', 'payload');
+        $nextRequest = $this->backend();
+        self::assertTrue($nextRequest->has('entry-a'));
+        self::assertTrue($nextRequest->has('entry-a'));
+        self::assertSame(3, $this->metadataFrontend->reads, 'the writer checks once, the next request reads once');
+    }
+
+    #[Test]
+    public function anEntryRemovedInTheSameRequestIsAbsentWithoutAnotherRead(): void
+    {
+        $backend = $this->backend();
+        $backend->set('entry-a', 'payload');
+        self::assertTrue($backend->has('entry-a'));
+        $reads = $this->metadataFrontend->reads;
+
+        $backend->remove('entry-a');
+
+        self::assertFalse($backend->has('entry-a'));
+        self::assertFalse($backend->get('entry-a'));
+        self::assertSame($reads, $this->metadataFrontend->reads);
+    }
+
+    #[Test]
+    public function aFlushInTheSameRequestMakesTheNextLookupReadAgain(): void
+    {
+        $backend = $this->backend();
+        $backend->set('entry-a', 'payload', ['tag_a']);
+        self::assertTrue($backend->has('entry-a'));
+        $reads = $this->metadataFrontend->reads;
+
+        $backend->flushByTag('tag_a');
+
+        self::assertFalse($backend->has('entry-a'));
+        self::assertSame($reads + 1, $this->metadataFrontend->reads);
+    }
+
     #[Test]
     public function removingAnEntryMakesItAbsent(): void
     {

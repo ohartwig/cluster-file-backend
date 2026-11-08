@@ -26,6 +26,9 @@ final class FakeMetadataFrontend implements FrontendInterface
 
     public bool $offline = false;
 
+    /** Number of `get()` calls — each one is a round trip in production. */
+    public int $reads = 0;
+
     public function __construct(private readonly string $identifier = 'cluster_meta') {}
 
     public function getIdentifier(): string
@@ -54,6 +57,7 @@ final class FakeMetadataFrontend implements FrontendInterface
 
     public function get($entryIdentifier): mixed
     {
+        ++$this->reads;
         $this->guard();
 
         return $this->entries[$entryIdentifier] ?? false;

@@ -29,6 +29,7 @@ use Moselwal\Typo3ClusterCache\Domain\Model\CompressionName;
 use Moselwal\Typo3ClusterCache\Domain\Model\SerializerName;
 use Moselwal\Typo3ClusterCache\Domain\Model\TagSet;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\PayloadL1Cache;
+use Moselwal\Typo3ClusterCache\Infrastructure\Cache\RequestScopedMetadataCache;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\Typo3MetadataCache;
 use Moselwal\Typo3ClusterCache\Infrastructure\Compression\GzipCompressor;
 use Moselwal\Typo3ClusterCache\Infrastructure\Compression\NullCompressor;
@@ -111,20 +112,6 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
     private RunGarbageCollection $gcRunner;
     private readonly LoggerInterface $cfbLogger;
     private bool $collectGarbageDelegated = false;
-
-    /**
-     * Request-scoped L1 memoization for `MetadataCachePort::get()` results.
-     * In FrankenPHP worker mode TYPO3 re-bootstraps per request (see
-     * `Moselwal\FrankenPHP\Runtime\FrontendWorker::handleRequest()`), so a
-     * fresh CacheManager and a fresh backend instance is created on every
-     * request — this map is automatically request-scoped, no shutdown hook
-     * needed. Map: cache-identifier value → CacheMetadata|null|false where
-     * `false` is the explicit "not-yet-looked-up" sentinel and `null` means
-     * "looked up, was a miss".
-     *
-     * @var array<string, CacheMetadata|false|null>
-     */
-    private array $metadataL1 = [];
 
     /**
      * Request-scoped L1 memoization of fully decoded payloads. See
@@ -236,10 +223,16 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
      */
     private function wireNamespaceBoundServices(): void
     {
-        $this->metadataCache = new Typo3MetadataCache(
+        // Request-scoped memo shared by every metadata reader and writer of
+        // this backend instance. In FrankenPHP worker mode TYPO3 re-bootstraps
+        // per request (see `Moselwal\FrankenPHP\Runtime\FrontendWorker::
+        // handleRequest()`), so a fresh CacheManager and a fresh backend —
+        // and therefore a fresh memo — exist on every request. Rewiring in
+        // `setCache()` also starts a fresh memo.
+        $this->metadataCache = new RequestScopedMetadataCache(new Typo3MetadataCache(
             $this->metadataCacheFrontend,
             $this->namespace,
-        );
+        ));
         $this->writer = new WriteCacheEntry(
             metadataCache: $this->metadataCache,
             localStore: $this->localStore,
@@ -339,7 +332,6 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
         // ClusterFileBackend instances would share the same tag space in
         // the underlying metadata-cache frontend.
         $this->wireNamespaceBoundServices();
-        $this->metadataL1 = [];
         $this->payloadL1->clear();
         $this->verifiedPhpHashes = [];
     }
@@ -365,14 +357,13 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
         };
         try {
             $this->writer->execute($this->namespace, $identifier, $data, $tagSet, $lifetimeSeconds);
-            // Invalidate metadata L1 — the next has()/get() must fetch the
-            // fresh metadata roundtrip; we cannot reconstruct the exact
-            // post-serialisation CacheMetadata cheaply here.
-            // The payload L1 we DO populate eagerly: the raw $data we just
+            // The metadata memo already holds what the writer stored (see
+            // RequestScopedMetadataCache::set()), so a has()/requireOnce()
+            // after this write needs no further round trip.
+            // The payload L1 we populate eagerly: the raw $data we just
             // wrote is exactly what get() would return, no decompression
             // needed. Subsequent get()s in the same request hit L1 and
             // skip both the metadata roundtrip AND the disk read.
-            unset($this->metadataL1[$identifier->value]);
             if (!$this->skipPayloadL1) {
                 $this->payloadL1->put($identifier->value, $data);
             }
@@ -446,7 +437,6 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
         $identifier = new CacheIdentifier($entryIdentifier);
         try {
             $result = $this->remover->execute($identifier);
-            unset($this->metadataL1[$identifier->value]);
             $this->payloadL1->forget($identifier->value);
 
             return $result;
@@ -474,7 +464,6 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
             // read either way, but our in-RAM copy could still hand them
             // out, which is the worse failure mode.
         }
-        $this->metadataL1 = [];
         $this->payloadL1->clear();
         $this->verifiedPhpHashes = [];
     }
@@ -487,10 +476,10 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
             $this->logFlushFailure('flushByTag', $e);
         }
         // The tag-to-identifier mapping lives in the metadata cache, not in
-        // L1. Cheapest correct option is to drop the whole L1 — the next
+        // L1. Cheapest correct option is to drop the whole L1 (the metadata
+        // memo drops itself in RequestScopedMetadataCache::flushByTag()) — the next
         // request will refill it lazily. Selective invalidation would mean
         // walking every L1 entry's tags, which negates the speedup.
-        $this->metadataL1 = [];
         $this->payloadL1->clear();
         $this->verifiedPhpHashes = [];
     }
@@ -502,7 +491,6 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
         } catch (\Throwable $e) {
             $this->logFlushFailure('flushByTags', $e);
         }
-        $this->metadataL1 = [];
         $this->payloadL1->clear();
         $this->verifiedPhpHashes = [];
     }
@@ -671,7 +659,7 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
      */
     private function markBrokenForPath(CacheMetadata $metadata, CacheIdentifier $identifier): void
     {
-        unset($this->metadataL1[$identifier->value], $this->verifiedPhpHashes[$metadata->hash->digest]);
+        unset($this->verifiedPhpHashes[$metadata->hash->digest]);
         $broken = new CacheMetadata(
             identifier: $metadata->identifier,
             hash: $metadata->hash,
@@ -702,21 +690,15 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
     }
 
     /**
-     * Memoised wrapper around `MetadataCachePort::get()`. Hits are returned
-     * from RAM (~0.5 µs); misses round-trip to the metadata cache once per
-     * identifier per request. Negative results (no-entry) are cached too,
-     * to avoid repeating the round-trip on `has('foo'); has('foo'); …` in
-     * the same request — which `Has` patterns in TypoScript template
-     * resolution and Fluid rendering commonly do.
+     * Reads metadata through the request-scoped memo
+     * ({@see RequestScopedMetadataCache}): repeat lookups of the same
+     * identifier — hits and misses alike, e.g. `has('foo'); has('foo'); …`
+     * in TypoScript template resolution and Fluid rendering — are answered
+     * from RAM; only the first one per request round-trips. Errors are
+     * logged, counted and not memoised.
      */
     private function loadMetadata(CacheIdentifier $identifier): ?CacheMetadata
     {
-        $key = $identifier->value;
-        if (\array_key_exists($key, $this->metadataL1)) {
-            $cached = $this->metadataL1[$key];
-
-            return false === $cached ? null : $cached;
-        }
         try {
             $metadata = $this->metadataCache->get($identifier);
         } catch (\Throwable $e) {
@@ -738,11 +720,10 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
                 'reason' => 'metadata-error',
             ]);
 
-            // Do not poison L1 with the error — on transient metadata
-            // backend failure (Redis blip) the next call should re-try.
+            // The memo does not record the error — on transient metadata
+            // backend failure (Redis blip) the next call re-tries.
             return null;
         }
-        $this->metadataL1[$key] = $metadata ?? false;
 
         return $metadata;
     }
