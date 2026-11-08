@@ -1,3 +1,9 @@
+## [2.7.0](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.38...v2.7.0) (2026-11-08)
+
+### :sparkles: Features
+
+* **cache:** serve metadata across requests while the store generation holds ([96b5f00](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/96b5f005a400deb251767153a491520a45656386))
+
 ## [2.6.38](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.37...v2.6.38) (2026-11-08)
 
 ### :fast_forward: Performance
