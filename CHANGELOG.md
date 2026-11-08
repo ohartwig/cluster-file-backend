@@ -1,3 +1,28 @@
+## [2.6.38](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.37...v2.6.38) (2026-11-08)
+
+### :fast_forward: Performance
+
+* **cache:** share one request-scoped metadata memo across reads and writes ([1cf800e](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/1cf800e2bb83e1be14ca82e741ccab07ab3a3c3e))
+
+### :repeat: Chores
+
+* **repo-templates:** sync ([5a6fc36](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/5a6fc36b6ea587036d42d8f6919bc2b0989272f1))
+* **repo-templates:** sync ([d127054](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/d12705400b480333829f22ace20bcfb167ad4df5))
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.150-8.5 ([5c3e5ec](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/5c3e5ec006af48bee88515eed232276f9bce41c5))
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.149-8.5 ([1428099](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/1428099f7dccd46b4cfc35e99dfcb49c8732eb17))
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.148-8.5 ([9801a43](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/9801a43c5e23408068421eaa00271034a8614a52))
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.147-8.5 ([2d68a20](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/2d68a2068191b9cf833c8d82926af4d7eb9098d9))
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.146-8.5 ([d6d399f](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/d6d399f59efac798264b3c4bb20dfa5974531035))
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.145-8.5 ([e408c8f](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/e408c8fe2ef479e999174adab5870c944779b477))
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.144-8.5 ([b65ed09](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/b65ed091ed64a4d6286820c9cc3381aca342e654))
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.143-8.5 ([dc5aa3d](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/dc5aa3df8a627bfb5e445cdf51d5b924a97eef8f))
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.142-8.5 ([c443394](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/c443394089e2531104b979eabd8d2f69f57abbfe))
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.139-8.5 ([604568e](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/604568ee2196533869272653058e0ff7e43ad92f))
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.138-8.5 ([200b829](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/200b829702d12b100aebadfd10480e7ce5e59c20))
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.137-8.5 ([8227457](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/8227457974525e6799f7680c89c5f2afdc78d1ac))
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.136-8.5 ([6979bba](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/6979bbadbd462ed6d310232111088b31283e1563))
+* **repo-templates:** sync ([6c97904](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/6c97904e44f150da2030a2abbba00365fea8f6e1))
+
 ## [2.6.37](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.36...v2.6.37) (2026-11-03)
 
 ### :bug: Fixes
