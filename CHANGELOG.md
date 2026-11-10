@@ -1,3 +1,19 @@
+## [2.8.0](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.7.0...v2.8.0) (2026-11-10)
+
+### :sparkles: Features
+
+* **cache:** trust a verified PHP payload while its inode, size and ctime hold ([7e994ee](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/7e994ee656003b60d4cc7ffa2c78b4ef2068fdaa))
+
+### :white_check_mark: Tests
+
+* **cache:** pin the fingerprint key and the hourly re-verification ([54e12ac](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/54e12ac78f1783f979d4a2805aa3ff52a05e22a3))
+
+### :repeat: Chores
+
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.172-8.5 ([6115e5a](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/6115e5a81e5e26e24552a73c940c76f16b0ce8a9))
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.171-8.5 ([6d713d4](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/6d713d48aad2fbc4b7cc89a4981c7a09c0d9cf69))
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.170-8.5 ([cd02f2f](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/cd02f2fe8899ae5017ecc2c6fd522d84ea1955ab))
+
 ## [2.7.0](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.6.38...v2.7.0) (2026-11-08)
 
 ### :sparkles: Features
