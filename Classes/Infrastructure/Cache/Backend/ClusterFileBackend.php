@@ -37,6 +37,7 @@ use Moselwal\Typo3ClusterCache\Infrastructure\Compression\GzipCompressor;
 use Moselwal\Typo3ClusterCache\Infrastructure\Compression\NullCompressor;
 use Moselwal\Typo3ClusterCache\Infrastructure\Compression\ZstdCompressor;
 use Moselwal\Typo3ClusterCache\Infrastructure\LocalStore\EmptyDirPayloadStore;
+use Moselwal\Typo3ClusterCache\Infrastructure\LocalStore\VerifiedPayloadFingerprints;
 use Moselwal\Typo3ClusterCache\Infrastructure\Observability\PrometheusMetrics;
 use Moselwal\Typo3ClusterCache\Infrastructure\Time\SystemClock;
 use Psr\Log\LoggerInterface;
@@ -69,6 +70,19 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  *
  * This package does NOT know anything about Redis/Valkey directly — all
  * cluster semantics are routed through the TYPO3 cache API.
+ *
+ * Code caches and option `crossRequestPhpVerification`: a payload file is
+ * executed only if its path is no symlink (checked on every require) and its
+ * sha256 matches the metadata. With the option on, a verification is
+ * remembered in the process together with the file's device, inode, size and
+ * ctime from one lstat(), compared again on every require; any change means
+ * a full sha256 verification. Threat model: an attacker with write access to
+ * the payload directory but without root cannot change a file's content or
+ * replace it without the kernel giving it a new ctime or inode, and cannot set
+ * ctime back (that needs root: the system clock). Root in the container and
+ * write access to the metadata cache are out of scope, with or without the
+ * option. Details, including the one-second ctime resolution, in
+ * {@see VerifiedPayloadFingerprints}.
  */
 final class ClusterFileBackend extends AbstractBackend implements TaggableBackendInterface, PhpCapableBackendInterface
 {
@@ -96,6 +110,7 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
     private readonly int $payloadL1MaxEntries;
     private readonly int $payloadL1MaxBytes;
     private readonly bool $crossRequestMetadataMemo;
+    private readonly bool $crossRequestPhpVerification;
     private readonly FrontendInterface $metadataCacheFrontend;
     private EmptyDirPayloadStore $localStore;
     /** @var array<string, CompressorPort> Lookup CompressionAlgo->value → codec */
@@ -173,6 +188,7 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
         $this->payloadL1MaxEntries = (int) $normalized['payloadL1MaxEntries'];
         $this->payloadL1MaxBytes = (int) $normalized['payloadL1MaxBytes'];
         $this->crossRequestMetadataMemo = true === $normalized['crossRequestMetadataMemo'];
+        $this->crossRequestPhpVerification = true === ($normalized['crossRequestPhpVerification'] ?? false);
         $this->payloadL1 = new PayloadL1Cache($this->payloadL1MaxEntries, $this->payloadL1MaxBytes);
         $this->cfbLogger = $this->logger ?? new NullLogger();
 
@@ -308,6 +324,16 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
     public function isCrossRequestMetadataMemoEnabled(): bool
     {
         return $this->crossRequestMetadataMemo;
+    }
+
+    /**
+     * Whether a verified PHP payload is trusted across requests while its
+     * file's inode, size and ctime are unchanged (option
+     * `crossRequestPhpVerification`).
+     */
+    public function isCrossRequestPhpVerificationEnabled(): bool
+    {
+        return $this->crossRequestPhpVerification;
     }
 
     public function getNamespaceEnvironment(): EnvironmentName
@@ -599,6 +625,12 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
             return false;
         }
         $path = $this->localStore->pathFor($metadata->hash);
+        // The checks below must see the file as it is now. PHP keeps the
+        // last stat()/lstat() result per process, and a FrankenPHP worker
+        // lives across requests. The time is read before the first stat
+        // call below; see verifyAgainstFingerprint().
+        clearstatcache();
+        $observedAt = time();
         if (!is_file($path)) {
             // Blob-miss: file is not pod-locally materialised yet. The
             // TYPO3 PhpFrontend contract returns false to signal "rebuild
@@ -624,6 +656,14 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
             return false;
         }
 
+        if ($this->crossRequestPhpVerification) {
+            if (!$this->verifyAgainstFingerprint($path, $metadata, $identifier, $observedAt)) {
+                return false;
+            }
+
+            return $once ? require_once $path : require $path;
+        }
+
         // First-touch sha256 integrity verify per hash per request. After
         // a successful verify, subsequent requireOnce on the same hash
         // hits OPcache directly and skips the file-read entirely — the
@@ -632,54 +672,123 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
         // caught.
         $digest = $metadata->hash->digest;
         if (!isset($this->verifiedPhpHashes[$digest])) {
-            try {
-                $this->localStore->readVerified($metadata->hash, $metadata->checksum);
-            } catch (\Moselwal\Typo3ClusterCache\Domain\Exception\PayloadIntegrityException $e) {
-                // Real integrity failure: sha256 mismatch — the bytes on
-                // disk do not match what metadata says they should be.
-                // Mark broken so subsequent reads short-circuit until TYPO3
-                // rebuilds via set(). markBrokenForPath also wipes the
-                // verifier cache + L1.
-                $this->cfbLogger->error('ClusterFileBackend::doRequire integrity check failed', [
-                    'cacheName' => $this->namespace->cacheName,
-                    'identifierDigest' => $this->hashIdentifierForLog($identifier),
-                    'hashPrefix' => $metadata->hash->prefix(12),
-                    'exceptionClass' => $e::class,
-                    'exceptionMessage' => $e->getMessage(),
-                ]);
-                $this->markBrokenForPath($metadata, $identifier);
-
-                return false;
-            } catch (\Moselwal\Typo3ClusterCache\Domain\Exception\PayloadNotFoundException $e) {
-                // Transient: file vanished or was unreadable between the
-                // is_file() check and file_get_contents() — typical race
-                // when another worker is rewriting the same hash, or a
-                // concurrent flush deleted it. DO NOT mark broken: the
-                // metadata is still authoritative, the local file just
-                // needs to be re-materialised. Return false so TYPO3
-                // triggers a caller rebuild via set(), which writes a
-                // fresh local file. Next requireOnce finds it.
-                $this->cfbLogger->info('ClusterFileBackend::doRequire local-file miss; rebuild expected', [
-                    'cacheName' => $this->namespace->cacheName,
-                    'identifierDigest' => $this->hashIdentifierForLog($identifier),
-                    'hashPrefix' => $metadata->hash->prefix(12),
-                ]);
-
-                return false;
-            } catch (\Throwable $e) {
-                $this->cfbLogger->error('ClusterFileBackend::doRequire unexpected error', [
-                    'cacheName' => $this->namespace->cacheName,
-                    'identifierDigest' => $this->hashIdentifierForLog($identifier),
-                    'exceptionClass' => $e::class,
-                    'exceptionMessage' => $e->getMessage(),
-                ]);
-
+            if (!$this->verifyPayload($metadata, $identifier)) {
                 return false;
             }
             $this->verifiedPhpHashes[$digest] = true;
         }
 
         return $once ? require_once $path : require $path;
+    }
+
+    /**
+     * Reads the payload file and compares its sha256 with the checksum the
+     * metadata states. A mismatch marks the entry broken; a vanished file
+     * is a miss the caller rebuilds.
+     *
+     * @return bool true: the bytes on disk are the bytes the metadata describes
+     */
+    private function verifyPayload(CacheMetadata $metadata, CacheIdentifier $identifier): bool
+    {
+        try {
+            $this->localStore->readVerified($metadata->hash, $metadata->checksum);
+        } catch (\Moselwal\Typo3ClusterCache\Domain\Exception\PayloadIntegrityException $e) {
+            // Real integrity failure: sha256 mismatch — the bytes on
+            // disk do not match what metadata says they should be.
+            // Mark broken so subsequent reads short-circuit until TYPO3
+            // rebuilds via set(). markBrokenForPath also wipes the
+            // verifier cache + L1.
+            $this->cfbLogger->error('ClusterFileBackend::doRequire integrity check failed', [
+                'cacheName' => $this->namespace->cacheName,
+                'identifierDigest' => $this->hashIdentifierForLog($identifier),
+                'hashPrefix' => $metadata->hash->prefix(12),
+                'exceptionClass' => $e::class,
+                'exceptionMessage' => $e->getMessage(),
+            ]);
+            $this->markBrokenForPath($metadata, $identifier);
+
+            return false;
+        } catch (\Moselwal\Typo3ClusterCache\Domain\Exception\PayloadNotFoundException $e) {
+            // Transient: file vanished or was unreadable between the
+            // is_file() check and file_get_contents() — typical race
+            // when another worker is rewriting the same hash, or a
+            // concurrent flush deleted it. DO NOT mark broken: the
+            // metadata is still authoritative, the local file just
+            // needs to be re-materialised. Return false so TYPO3
+            // triggers a caller rebuild via set(), which writes a
+            // fresh local file. Next requireOnce finds it.
+            $this->cfbLogger->info('ClusterFileBackend::doRequire local-file miss; rebuild expected', [
+                'cacheName' => $this->namespace->cacheName,
+                'identifierDigest' => $this->hashIdentifierForLog($identifier),
+                'hashPrefix' => $metadata->hash->prefix(12),
+            ]);
+
+            return false;
+        } catch (\Throwable $e) {
+            $this->cfbLogger->error('ClusterFileBackend::doRequire unexpected error', [
+                'cacheName' => $this->namespace->cacheName,
+                'identifierDigest' => $this->hashIdentifierForLog($identifier),
+                'exceptionClass' => $e::class,
+                'exceptionMessage' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * The integrity check of doRequire() with `crossRequestPhpVerification`
+     * on, run on every require (the is_link() refusal has already run).
+     *
+     * $observedAt is the unix time read before the file was first stat'ed in
+     * this call. One lstat() gives the file's fingerprint (device, inode, size, ctime).
+     * If this process verified the file's sha256 against this checksum while
+     * it had exactly that fingerprint, the content is the verified content
+     * and is not read again. Otherwise it is verified in full, as without
+     * the option, and the fingerprint taken before that read is recorded on
+     * success. See {@see VerifiedPayloadFingerprints} for the threat model
+     * and why ctime cannot be forged without root.
+     *
+     * @return bool false: do not execute the file (entry handled as a miss or as broken)
+     */
+    private function verifyAgainstFingerprint(string $path, CacheMetadata $metadata, CacheIdentifier $identifier, int $observedAt): bool
+    {
+        $fingerprints = VerifiedPayloadFingerprints::processWide();
+        $key = $path . "\0" . $metadata->checksum->digest;
+        // The lstat() that is_link() made in doRequire(), from PHP's stat
+        // cache; it ran after $observedAt was read.
+        $mtime = null;
+        $fingerprint = VerifiedPayloadFingerprints::fingerprintOf($path, $mtime);
+        // A file not touched for an hour is verified in full once more: the
+        // verifying read also refreshes its mtime, which keeps garbage
+        // collection away from payloads in use (EmptyDirPayloadStore).
+        $touchDue = null !== $mtime && $mtime < $observedAt - EmptyDirPayloadStore::TOUCH_INTERVAL_SECONDS;
+        if (null !== $fingerprint && !$touchDue && $fingerprints->isVerified($key, $fingerprint)) {
+            $this->metrics->counter('php_payload_fingerprint_total', [
+                'cacheName' => $this->namespace->cacheName,
+                'namespace' => $this->namespace->toKvKeyPrefix(),
+                'result' => 'unchanged',
+            ]);
+
+            return true;
+        }
+
+        $fingerprints->forget($key);
+        if (!$this->verifyPayload($metadata, $identifier)) {
+            return false;
+        }
+        if (null !== $fingerprint) {
+            $fingerprints->remember($key, $fingerprint, $observedAt);
+        }
+        $this->metrics->counter('php_payload_fingerprint_total', [
+            'cacheName' => $this->namespace->cacheName,
+            'namespace' => $this->namespace->toKvKeyPrefix(),
+            'result' => 'verified',
+        ]);
+
+        return true;
     }
 
     /**
