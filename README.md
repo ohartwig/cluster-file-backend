@@ -437,6 +437,50 @@ generation, so they are safe neighbours. Hence:
 `ClusterFileBackend::isCrossRequestMetadataMemoEnabled()` tells whether a
 cache runs with the memo.
 
+## Cross-request PHP payload verification
+
+Code caches (`typoscript`, `fluid_template`) are executed with `require`,
+so before a payload file runs, `doRequire()` checks it: the path must not
+be a symlink (`is_link()`, on every call), and the file's sha256 must match
+the checksum in the metadata. Without this option the sha256 check runs on
+the first require of each payload in every request; TYPO3 14 requires some
+25 TypoScript payloads per page, up to 1.3 MiB each, which is roughly 10 ms
+of hashing per uncached render.
+
+With `crossRequestPhpVerification` on, the verification is remembered in
+the process (in FrankenPHP worker mode: across requests), keyed by the
+file's **device, inode, size and ctime** as one `lstat()` reports them.
+On every require (not only the first of a request) the fingerprint is
+taken again: unchanged, the file is executed without being read; any
+difference means a full verification, exactly as without the option.
+
+```php
+'options' => [
+    // …
+    'crossRequestPhpVerification' => true,   // default false
+],
+```
+
+Threat model: the check defends the pod-local payload directory against
+a process that can write there but is not root. It cannot change a file's
+content or swap the file without the kernel setting a new ctime (or giving
+the path another inode), and only root can set ctime. Root in the
+container, and anyone who can write the metadata cache (it states the
+checksum), are out of scope, as they are without the option. ctime has
+whole-second resolution in PHP, so a fingerprint is only recorded when the
+file's ctime lies in an earlier second than the check; a file written in
+the current second is verified again on its next require. Once an hour a
+payload is verified in full anyway: that read refreshes its mtime, which
+keeps garbage collection away from payloads in use.
+
+The option is pod-local: no other pod needs to run a particular version
+first. `moselwal/typo3-config` switches it on with
+`CLUSTER_CACHE_PHP_VERIFY_MEMO=1`. Counter
+`php_payload_fingerprint_total` (`result`: `unchanged`, `verified`) shows
+how often the hash was skipped;
+`ClusterFileBackend::isCrossRequestPhpVerificationEnabled()` tells whether
+a cache runs with it.
+
 ## Complexity — why it's faster in a cluster
 
 Notation: *n* = total entries in the namespace, *m* = entries matching a

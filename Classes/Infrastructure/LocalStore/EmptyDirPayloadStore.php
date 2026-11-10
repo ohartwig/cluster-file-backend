@@ -24,7 +24,7 @@ final class EmptyDirPayloadStore implements LocalPayloadStorePort, StalePayloadP
      * stale-file purge. Throttled so a hot entry costs one touch per interval,
      * not one per request.
      */
-    private const int TOUCH_INTERVAL_SECONDS = 3600;
+    public const int TOUCH_INTERVAL_SECONDS = 3600;
 
     /**
      * @param string $fileSuffix Appended to every payload filename. The

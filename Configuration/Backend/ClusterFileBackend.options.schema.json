@@ -79,6 +79,11 @@
             "default": false,
             "description": "Serve metadata from a process-wide memo (FrankenPHP worker lifetime) that is checked against a cluster-wide generation value once per request, instead of reading every identifier from the metadata cache on every request. Every pod writing to the same metadata cache MUST run a package version that maintains the generation (>= the version introducing this option) before this is switched on; older pods mutate metadata without announcing it, and pods with the memo would not notice. See README, section 'Cross-request metadata memo'."
         },
+        "crossRequestPhpVerification": {
+            "type": "boolean",
+            "default": false,
+            "description": "PhpFrontend caches only (typoscript, fluid_template): trust a payload file whose sha256 was verified earlier in this process (FrankenPHP worker lifetime) for as long as one lstat() shows the same device, inode, size and ctime. Any change, and every hour (the touch that keeps garbage collection away), means a full sha256 verification as without the option. The is_link() refusal still runs on every require. Pod-local; no cluster-wide precondition. See README, section 'Cross-request PHP payload verification'."
+        },
         "backendVersionEnvVar": {
             "type": "string",
             "pattern": "^[A-Z_][A-Z0-9_]{0,63}$",
