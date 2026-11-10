@@ -89,6 +89,17 @@ final class VerifiedPayloadFingerprintsTest extends TestCase
     }
 
     #[Test]
+    public function aBoundOfOneKeepsTheLatestEntry(): void
+    {
+        $record = new VerifiedPayloadFingerprints(1);
+        $record->remember('a', [1, 1, 1, 1], 2);
+        $record->remember('b', [1, 1, 1, 1], 2);
+
+        self::assertSame(1, $record->count());
+        self::assertTrue($record->isVerified('b', [1, 1, 1, 1]));
+    }
+
+    #[Test]
     public function aBoundBelowOneIsRejected(): void
     {
         $this->expectException(\InvalidArgumentException::class);

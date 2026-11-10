@@ -329,6 +329,58 @@ final class ClusterFileBackendCrossRequestPhpVerificationTest extends TestCase
         self::assertFalse($backend->require('entry-a'));
     }
 
+    /**
+     * Records the payload's current fingerprint as verified, the way a
+     * successful verification in an earlier request would have.
+     */
+    private function recordAsVerified(): string
+    {
+        $payload = $this->soledPayloadFile();
+        clearstatcache();
+        $fingerprint = VerifiedPayloadFingerprints::fingerprintOf($payload);
+        self::assertNotNull($fingerprint);
+        $key = $payload . "\0" . \hash('sha256', (string) \file_get_contents($payload));
+        self::assertTrue(VerifiedPayloadFingerprints::processWide()->remember($key, $fingerprint, \time()));
+
+        return $payload;
+    }
+
+    /**
+     * The record is keyed by path and checksum: a fingerprint recorded for
+     * exactly this file and these bytes spares the hash.
+     */
+    #[Test]
+    public function aRecordedFingerprintSparesTheHash(): void
+    {
+        $this->phpBackend()->set('entry-a', "<?php\nreturn ['answer' => 42];\n");
+        $this->letTheCtimeAge();
+        $this->recordAsVerified();
+
+        self::assertSame(['answer' => 42], $this->phpBackend()->require('entry-a'));
+        self::assertSame(['unchanged' => 1], $this->fingerprintResults());
+    }
+
+    /**
+     * Garbage collection removes payloads by mtime, and only a verifying
+     * read refreshes it. A payload not touched for an hour is therefore
+     * verified in full even with an unchanged fingerprint.
+     */
+    #[Test]
+    public function aPayloadNotTouchedForAnHourIsVerifiedAndTouchedAgain(): void
+    {
+        $this->phpBackend()->set('entry-a', "<?php\nreturn ['answer' => 42];\n");
+        $payload = $this->soledPayloadFile();
+        \touch($payload, \time() - 7200);
+        $this->letTheCtimeAge();
+        $this->recordAsVerified();
+
+        self::assertSame(['answer' => 42], $this->phpBackend()->require('entry-a'));
+
+        self::assertSame(['verified' => 1], $this->fingerprintResults());
+        clearstatcache();
+        self::assertGreaterThan(\time() - 60, (int) \filemtime($payload), 'the verifying read touched the payload');
+    }
+
     #[Test]
     public function withTheOptionOffNothingIsRecorded(): void
     {
