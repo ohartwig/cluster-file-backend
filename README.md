@@ -404,18 +404,47 @@ read per request.
 
 ### How it works
 
-- **Generation.** One key in the metadata cache
-  (`__cfb_generation_v1__`), shared by every cache that uses that metadata
-  cache. It is store-wide on purpose: entries are keyed by the bare cache
-  identifier, so all caches share one key space, and the namespace
-  `instance` may differ between pods (it defaults to the hostname in some
-  setups).
-- **Every mutation** through this package — `set`, `remove`, `flush`,
-  `flushByTag(s)`, `collectGarbage` (backend and CLI), broken-markers —
-  runs as: write `dirty-<random>`; mutate; read the generation and, unless
-  it is *another* writer's dirty marker, write a fresh `<random>`. This
-  happens whether or not the memo is on. Cost: one read and two small
-  writes per mutation.
+- **Generation.** One value per metadata cache, shared by every cache
+  that uses that metadata cache. It is store-wide on purpose: entries are
+  keyed by the bare cache identifier, so all caches share one key space,
+  and the namespace `instance` may differ between pods (it defaults to the
+  hostname in some setups). Where it lives depends on the metadata
+  backend:
+  - a backend that keeps generations itself (`KeyValueBackend` of
+    `moselwal/keyvalue-store` from 4.9.0): a raw key of the backend,
+    `<keyPrefix>generation:cfb_generation_v2`, holding the plain string
+    `<random>` or `dirty-<random>` — not an entry, never serialized;
+  - any other backend (`Typo3DatabaseBackend`, …): the entry
+    `__cfb_generation_v1__` of the metadata cache, written through the
+    frontend. This is also the only key releases before the raw key know
+    ("legacy key" below).
+- **Every mutation** through this package moves the generation, whether or
+  not the memo is on. The invariant: *no mutation completes without the
+  generation taking a value it never had before, or holding a dirty
+  marker.* Two forms keep it:
+  - **Three steps** — `remove`, `flush`, `flushByTag(s)`,
+    `collectGarbage` (backend and CLI) on every backend, and `set` on a
+    backend that only keeps entries: write `dirty-<random>`; mutate;
+    publish a fresh `<random>` unless the generation is *another*
+    writer's dirty marker. On a backend with its own generation the
+    publish is one conditional write on the server (three round trips in
+    all, generation writes included); otherwise a read and a write (four).
+  - **One step** — `set` (which includes broken-markers) on a backend with
+    its own generation: the entry, its tag index and a fresh `<random>`
+    generation are written by one server-side script, atomically, in the
+    round trip the set takes anyway. There is no moment at which the entry
+    has changed and the generation has not, so no dirty marker is needed.
+    If the generation is another writer's dirty marker, the script writes
+    the entry and **leaves the marker**: that writer is in the middle of a
+    multi-step mutation and publishes after it; putting a clean value over
+    its marker would leave a clean generation over a half-applied mutation
+    if its publish then failed.
+  Measured once (2026-11-13, PHP 8.5.8 against a local Valkey 9.1.3
+  behind a Docker port forward, where one round trip costs about 0.35 ms;
+  medians, metadata with two tags): `set` 1,500 µs → 410 µs, 40 sets as in
+  a cold render 61.5 ms → 16.6 ms, `remove` 1,490 µs → 1,050 µs. The
+  ratios are the round trips, 4 → 1 and 4 → 3; on a production network
+  each round trip is some 50 µs.
 - **Every request** that touches metadata reads the generation once
   (shared by all caches of the request). Same clean value as the memo was
   filled under, and the memo younger than 5 minutes → serve from the memo.
@@ -435,20 +464,24 @@ Generations are random, so each value is written exactly once. Entries are
 memoised only after the generation check, so everything in a memo filled
 under generation G was read after G was written. Every mutation is
 followed by a write of a value other than G — its own publish step, or
-(when it defers to another writer's dirty marker) that writer's later
-publish. So if A's next request still reads G, every mutation completed
-by then wrote its metadata before G existed, i.e. before A read it.
+(when it defers to another writer's dirty marker, or a one-step set leaves
+one in place) that writer's later publish — or, for a one-step set, is
+that write: entry and new generation change in the same atomic step. So
+if A's next request still reads G, every mutation completed by then wrote
+its metadata no later than G was written, i.e. before A read it.
 
 Failure cases:
 
 | Case | Behaviour |
 |---|---|
 | Dirty-marker write fails | The mutation is not attempted; the error surfaces exactly like a metadata-cache outage today. |
+| One-step set fails | Entry and generation are one script: either both changed or neither did. The error surfaces like a failed metadata write. (Inside the script the generation is written first, so a server that aborts it half-way leaves a moved generation, never a changed entry under the old one.) |
+| One-step set meets another writer's dirty marker | The entry is written, the marker stays, counted as `metadata_generation_publish_total{result=deferred}`. Readers read per entry until that writer publishes. |
 | Mutation fails half-way | The publish step still runs. |
 | Publish write fails / process dies mid-mutation | The generation stays dirty: every pod reads per entry (pre-memo behaviour) until the next successful mutation. Counted as `metadata_generation_publish_total{result=error}`. |
 | Generation evicted, expired or flushed with the whole metadata cache | Absent = per-entry reads until the next mutation. |
 | Entry expired or evicted by the store without a mutation | The memo honours `expiresAt`; anything else is re-read after at most 5 minutes. |
-| Two pods mutate concurrently **and** the final publish of one of them fails | The one case the protocol cannot exclude without compare-and-set: a reader may keep a pre-mutation entry for at most 5 minutes (the memo's maximum age). |
+| Two pods mutate concurrently in three steps **and** the final publish of one of them fails | On a backend that only keeps entries, the publish is a read followed by a write, and the second pod's dirty marker replaces the first's: a reader may keep a pre-mutation entry for at most 5 minutes (the memo's maximum age). On a backend with its own generation the publish is a compare-and-set and a one-step set never replaces a marker, which leaves only the overlap of two multi-step mutations (two flushes, say) where the later one's marker replaced the earlier one's, the later one published, and the earlier one's publish then failed. Same bound. |
 
 ### Rolling it out (version skew)
 
@@ -464,6 +497,57 @@ generation, so they are safe neighbours. Hence:
    option on. A rolling restart mixing "on" and "off" pods is safe.
 3. To roll back to an older package version, switch the option off first.
 
+This concerns versions that do not maintain a generation at all. Versions
+that maintain it in different places are compatible without a switch, see
+the next section.
+
+### Moving the generation into the backend (version skew)
+
+Nothing to switch: a pod uses the raw key as soon as it runs this version
+with `moselwal/keyvalue-store` ≥ 4.9.0 as the metadata backend, and the
+legacy key otherwise. Both kinds of pod can run next to each other — in a
+rolling deploy, a rollback, or for good — because the newer side follows
+three rules:
+
+1. **A reader trusts the raw generation only while the legacy key is
+   absent.** A legacy writer writes the legacy key before it mutates and
+   again after; as long as that key exists, pods on the raw key read per
+   entry. One script returns both the raw generation and whether the
+   legacy key exists, so this costs no extra round trip.
+2. **The one-step set refuses while the legacy key exists** and the set
+   runs in three steps instead. So an entry never changes under a legacy
+   generation that a legacy reader still trusts. (Counted as
+   `metadata_generation_atomic_refused_total`.)
+3. **The three steps also speak legacy while the legacy key exists:** the
+   dirty marker goes to the raw key and to the legacy key (exactly a legacy
+   writer's first step, so legacy readers stop using their memos), and
+   after publishing the raw generation the pod removes the legacy key —
+   unless it holds a dirty marker of another writer, who is still mutating
+   and will publish itself. A removed legacy key reads as "absent" on
+   legacy pods: per-entry reads.
+
+What that means in practice:
+
+| Situation | Legacy pods (memo on) | Pods on the raw key (memo on) |
+|---|---|---|
+| Only legacy pods write | memo works | per-entry reads (legacy key exists) |
+| Both kinds write (rolling deploy) | per-entry reads whenever a newer pod wrote last | per-entry reads whenever a legacy pod wrote last |
+| Only pods on the raw key write | per-entry reads (legacy key absent) | memo works; the first mutation removed the legacy key, every later `set` is one round trip |
+
+Nobody serves stale metadata in any row; a mixed fleet only loses the
+memo's saving for as long as it is mixed. The first mutation after the
+last legacy write costs seven round trips once (the refused set, two dirty
+markers, the set, the publish, reading and removing the legacy key).
+
+The one case not excluded is the one the legacy protocol never excluded
+between its own writers: a legacy writer is still mutating when a newer
+pod's dirty marker replaces its marker in the legacy key, and the legacy
+writer's own final write then fails. Bounded by the memo's maximum age.
+
+`moselwal/keyvalue-store` < 4.9.0, or a backend of another kind, simply
+keeps the legacy key and the three steps through the frontend; nothing in
+the configuration changes either way.
+
 ### Metrics
 
 | Counter | Labels |
@@ -471,7 +555,8 @@ generation, so they are safe neighbours. Hence:
 | `metadata_memo_check_total` | `result`: `reuse` (memo served), `reset` (generation changed), `bypass` (dirty/absent/unreadable) |
 | `metadata_memo_hit_total` / `metadata_memo_miss_total` | per lookup below the request-scoped memo |
 | `metadata_memo_full_total` | identifier not memoised because the memo is full |
-| `metadata_generation_publish_total` | `result`: `published`, `deferred`, `error` |
+| `metadata_generation_publish_total` | `result`: `published`, `deferred` (another writer's dirty marker was left in place), `error`; one per mutation, one-step sets included |
+| `metadata_generation_atomic_refused_total` | one-step sets that ran in three steps because the legacy key existed; non-zero only while legacy pods write |
 
 `ClusterFileBackend::isCrossRequestMetadataMemoEnabled()` tells whether a
 cache runs with the memo.

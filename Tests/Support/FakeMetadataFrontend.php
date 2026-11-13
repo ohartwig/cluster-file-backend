@@ -10,6 +10,7 @@ namespace Moselwal\Typo3ClusterCache\Tests\Support;
 
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\Typo3MetadataCache;
 use TYPO3\CMS\Core\Cache\Backend\BackendInterface;
+use TYPO3\CMS\Core\Cache\Backend\NullBackend;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 
 /**
@@ -47,9 +48,13 @@ final class FakeMetadataFrontend implements FrontendInterface
         return $this->identifier;
     }
 
+    /**
+     * A backend that keeps nothing, and in particular no generation: the
+     * store built on this double runs the protocol through the frontend.
+     */
     public function getBackend(): BackendInterface
     {
-        throw new \RuntimeException('the backend is not reached through this double', 1785350000);
+        return new NullBackend();
     }
 
     /** @param array<mixed> $tags */

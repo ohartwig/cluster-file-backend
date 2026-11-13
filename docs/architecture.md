@@ -23,6 +23,9 @@ Blick. Detail-Spezifikationen liegen in `specs/001-cluster-cache-backend/`.
 │   Typo3MetadataCache       — Adapter MetadataCachePort ←→ TYPO3-       │
 │                              FrontendInterface (beliebiges Backend),   │
 │                              hält auch die Store-Generation            │
+│   AtomicGenerationMetadataCache — derselbe Store, wenn das Metadaten-  │
+│                              Backend die Generation selbst hält:       │
+│                              set + Generation in einem Round-Trip      │
 │   RequestScopedMetadataCache — Metadaten-Memo je Request               │
 │   GenerationGuardedMetadataCache — Generation bei jeder Mutation neu,  │
 │                              optional Memo über Requests hinweg        │
@@ -51,6 +54,8 @@ Blick. Detail-Spezifikationen liegen in `specs/001-cluster-cache-backend/`.
 │   Contracts (Ports):                                                   │
 │     MetadataCachePort      — die einzige Sicht auf den Metadata-Store  │
 │     MetadataGenerationPort — Generationswert dieses Stores             │
+│     AtomicMetadataGenerationPort — optionale Fähigkeit: set und        │
+│                              Generation in einem Schritt               │
 │     LocalPayloadStorePort  — pod-lokales File-IO                       │
 │     CompressorPort         — Compressor-Vertrag                        │
 │     ClockPort              — zentrale Zeit                             │
@@ -118,17 +123,24 @@ TYPO3 CacheManager
 ClusterFileBackend (has/get/requireOnce/set/…)
   └─► RequestScopedMetadataCache        ← je Backend-Instanz = je Request
        └─► GenerationGuardedMetadataCache
-            ├─ Mutation: Generation := dirty-<zufall>, Mutation,
-            │            Generation := <zufall> (außer fremder dirty-Marker)
+            ├─ Mutation in drei Schritten (remove, flush*, GC; set ohne
+            │  die Fähigkeit): Generation := dirty-<zufall>, Mutation,
+            │  Generation := <zufall> (außer fremder dirty-Marker)
+            ├─ set in einem Schritt (Store mit AtomicMetadataGenerationPort):
+            │  Eintrag + Generation := <zufall> atomar in einem Skript;
+            │  ein fremder dirty-Marker bleibt stehen
             └─ Lesen (nur mit crossRequestMetadataMemo):
                einmal je Request Generation lesen;
                gleich + Memo < 5 min → CrossRequestMetadataMemo,
                sonst Memo leeren (dirty/fehlend: ohne Memo lesen)
                  └─► Typo3MetadataCache → Metadaten-Frontend
+                     (bzw. AtomicGenerationMetadataCache → Frontend für die
+                      Einträge, Backend-Rohschlüssel für die Generation)
 ```
 
-Begründung, Konsistenzargument und Rollout bei Versionsmischung: README,
-Abschnitt „Cross-request metadata memo“.
+Begründung, Konsistenzargument und Rollout bei Versionsmischung
+(Pods mit Generation im Frontend-Eintrag neben Pods mit Generation im
+Backend-Rohschlüssel): README, Abschnitt „Cross-request metadata memo“.
 
 ### Garbage Collection (CLI)
 

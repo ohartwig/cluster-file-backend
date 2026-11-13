@@ -29,7 +29,10 @@ use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
  * {@see \TYPO3\CMS\Core\Cache\Frontend\VariableFrontend} is the natural choice.
  *
  * It also stores the store-wide generation ({@see MetadataGenerationPort})
- * under one fixed key in the same frontend. The key is deliberately not
+ * under one fixed key in the same frontend — for backends that can keep
+ * nothing but entries, and as the "legacy" generation next to
+ * {@see AtomicGenerationMetadataCache}, which takes over when the backend
+ * can keep the generation itself. The key is deliberately not
  * namespaced: metadata entries are keyed by the bare cache identifier, so
  * every cache sharing the frontend writes into one key space, and the
  * generation has to cover exactly that space. Neither the cache name nor
@@ -168,6 +171,16 @@ final readonly class Typo3MetadataCache implements MetadataCachePort, MetadataGe
         // that cap "unlimited", like KeyValueBackend at one year, only make
         // the key disappear, which readers treat as "unknown" — safe).
         $this->cache->set(self::GENERATION_KEY, $generation, [], 0);
+    }
+
+    /**
+     * Removes the generation key. Readers then see "absent" and read per
+     * entry. Used by {@see AtomicGenerationMetadataCache} to retire this
+     * key once the generation lives in the backend.
+     */
+    public function removeGeneration(): void
+    {
+        $this->cache->remove(self::GENERATION_KEY);
     }
 
     /**
