@@ -17,8 +17,14 @@ final class BackendVersionInfo
      * support) in the same store. Bumping CURRENT folds into every hash and
      * makes pre-v2.2 entries unreachable, so the reader never tries to
      * interpret an old payload without a marker as a marker-prefixed one.
+     *
+     * Bumped to 3: PayloadHash takes its context as a suffix after the
+     * serialized bytes instead of a prefix before them, so a PHP cache's
+     * checksum comes from the same sha256 pass (PayloadHash::
+     * computeWithChecksumOfBytes()). Every hash changes once; nothing old is read
+     * as new.
      */
-    public const int CURRENT = 2;
+    public const int CURRENT = 3;
 
     private function __construct() {}
 }

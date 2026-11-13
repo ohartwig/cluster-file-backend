@@ -21,6 +21,18 @@ final readonly class PayloadHash
         }
     }
 
+    /**
+     * The identity of a payload: sha256 over the serialized bytes, then the
+     * context they were produced in (serializer, compression, backend
+     * version, PHP major.minor). Same bytes in the same context, same hash,
+     * on every pod (R-005, FR-016).
+     *
+     * The context is a suffix, not a prefix, since BackendVersionInfo 3: a
+     * caller that also needs the plain sha256 of the bytes -- the checksum of
+     * a payload stored as it is (WriteCacheEntry, PHP caches) -- takes it from
+     * the same pass over the bytes instead of hashing them twice
+     * (computeWithChecksumOfBytes()).
+     */
     public static function compute(
         SerializerName $serializer,
         CompressionName $compression,
@@ -28,15 +40,43 @@ final readonly class PayloadHash
         string $phpMajorMinor,
         string $serializedBytes,
     ): self {
-        $hashInput = \sprintf(
-            '%s|%s|%d|%s|',
+        return new self(hash(self::ALGO, $serializedBytes . self::context($serializer, $compression, $backendVersion, $phpMajorMinor)));
+    }
+
+    /**
+     * compute() and the sha256 of the bytes alone, from one pass over the
+     * bytes: the state after them is copied before the context goes in.
+     *
+     * @return array{self, PayloadChecksum}
+     */
+    public static function computeWithChecksumOfBytes(
+        SerializerName $serializer,
+        CompressionName $compression,
+        BackendVersion $backendVersion,
+        string $phpMajorMinor,
+        string $serializedBytes,
+    ): array {
+        $state = hash_init(self::ALGO);
+        hash_update($state, $serializedBytes);
+        $checksum = new PayloadChecksum(hash_final(hash_copy($state)));
+        hash_update($state, self::context($serializer, $compression, $backendVersion, $phpMajorMinor));
+
+        return [new self(hash_final($state)), $checksum];
+    }
+
+    private static function context(
+        SerializerName $serializer,
+        CompressionName $compression,
+        BackendVersion $backendVersion,
+        string $phpMajorMinor,
+    ): string {
+        return \sprintf(
+            '|%s|%s|%d|%s',
             $serializer->version,
             $compression->name->value,
             $backendVersion->value,
             $phpMajorMinor,
         );
-
-        return new self(hash(self::ALGO, $hashInput . $serializedBytes));
     }
 
     public function equals(self $other): bool

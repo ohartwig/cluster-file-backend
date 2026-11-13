@@ -10,6 +10,7 @@ namespace Moselwal\Typo3ClusterCache\Tests\Unit\Domain\Model;
 
 use Moselwal\Typo3ClusterCache\Domain\Model\BackendVersion;
 use Moselwal\Typo3ClusterCache\Domain\Model\CompressionName;
+use Moselwal\Typo3ClusterCache\Domain\Model\PayloadChecksum;
 use Moselwal\Typo3ClusterCache\Domain\Model\PayloadHash;
 use Moselwal\Typo3ClusterCache\Domain\Model\SerializerName;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -128,6 +129,22 @@ final class PayloadHashTest extends TestCase
     {
         $hash = $this->buildSampleHash('shard-test');
         self::assertSame(substr($hash->digest, 0, 2), $hash->prefix(2));
+    }
+
+    public function testOnePassGivesTheSameHashAndTheChecksumOfTheBytes(): void
+    {
+        $bytes = str_repeat("<?php return ['a' => 1];\n", 4096);
+        [$hash, $checksum] = PayloadHash::computeWithChecksumOfBytes(
+            SerializerName::phpNative(),
+            CompressionName::none(),
+            new BackendVersion(3),
+            '8.5',
+            $bytes,
+        );
+
+        self::assertTrue($hash->equals(PayloadHash::compute(SerializerName::phpNative(), CompressionName::none(), new BackendVersion(3), '8.5', $bytes)));
+        self::assertTrue($checksum->equals(PayloadChecksum::ofBytes($bytes)), 'the checksum is sha256 of the bytes alone');
+        self::assertNotSame($checksum->digest, $hash->digest, 'the hash also covers the context');
     }
 
     private function buildSampleHash(string $bytes): PayloadHash

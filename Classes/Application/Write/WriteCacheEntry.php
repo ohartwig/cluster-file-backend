@@ -84,13 +84,28 @@ final class WriteCacheEntry
         // the marker prefix would leak a NUL byte to the response body via
         // `require_once`. The reader side knows the encoding from metadata.
         $payload = $this->bareBytes ? $compressed : ($effectiveAlgo->marker() . $compressed);
-        $hash = $this->hasher->fromRawBytes(
-            $rawBytes,
-            $this->serializer,
-            $this->compression,
-            $this->backendVersion,
-        );
-        $checksum = PayloadChecksum::ofBytes($payload);
+        // Stored as serialized (a PHP cache's bare, uncompressed bytes): the
+        // file's checksum is the sha256 of the serialized bytes, taken from
+        // the pass that computes the hash. Otherwise the stored bytes differ
+        // and get a pass of their own. One pass instead of two is what the
+        // largest entries need: compiled TypoScript and Fluid templates, all
+        // PHP caches, rewritten after every cache flush.
+        if ($this->bareBytes && CompressionAlgo::None === $effectiveAlgo) {
+            [$hash, $checksum] = $this->hasher->fromRawBytesWithChecksum(
+                $rawBytes,
+                $this->serializer,
+                $this->compression,
+                $this->backendVersion,
+            );
+        } else {
+            $hash = $this->hasher->fromRawBytes(
+                $rawBytes,
+                $this->serializer,
+                $this->compression,
+                $this->backendVersion,
+            );
+            $checksum = PayloadChecksum::ofBytes($payload);
+        }
         $lifetime = 0 === $lifetimeSeconds
             ? Lifetime::unlimited($this->clock)
             : Lifetime::fromSeconds($lifetimeSeconds, $this->clock);
