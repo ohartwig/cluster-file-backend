@@ -45,6 +45,45 @@ written files.
   `cache_hit_total` / `cache_miss_total`, lets operators see the three-layer
   hit distribution.
 
+## Performance notes
+
+Measured on aarch64 (Graviton) in a PHP 8.5.12 production image; numbers
+from a cold cache unless stated otherwise.
+
+- **Install `ext-openssl`** (recommended, optional). Every write and every
+  full verification hashes the whole payload with sha256. ext-hash does that
+  in portable C; OpenSSL uses the CPU's SHA instructions: 2.2 MB in 1.0 ms
+  instead of 15.9 ms. The backend uses OpenSSL when it is loaded, offers
+  sha256 and passes a known-answer check once per process, and falls back to
+  `hash()` otherwise -- same digest either way, so pods with and without
+  OpenSSL share one cache.
+- **One sha256 pass for PHP caches without OpenSSL.** The payload identity
+  takes its context as a suffix (`BackendVersion` 3), so a PHP cache's
+  checksum comes from the same ext-hash pass (`hash_copy()`): 21.6 -> 10.6 ms
+  for 2.2 MB.
+- **Option validation once per process.** TYPO3 builds every cache backend
+  again per request, also in a FrankenPHP worker with a persistent
+  bootstrap. The JSON-schema validation of the options now runs once per
+  distinct option set and process: 164 -> 9.5 µs per backend.
+- **One `lstat()` per require.** `doRequire()` and the payload store read the
+  file type, the fingerprint and the mtime from a single `lstat()` instead of
+  `is_file()` + `is_link()` + `lstat()` + `filemtime()`. A symlink is still
+  refused on every call -- now also one that points nowhere.
+- **Nothing rewritten when nothing changed.** A `set()` that would store the
+  same bytes, tags and format for an entry that never expires (every PHP
+  cache entry) leaves the metadata alone and writes the file only if this
+  pod lacks it: one metadata read instead of five round trips, and no
+  generation bump that would empty every worker's metadata memo. Counter
+  `repair_unchanged_total`.
+- **`open_basedir` costs more than all of the above.** PHP switches the
+  realpath cache off while `open_basedir` is set (`realpath_cache_size()`
+  returns 0 whatever `realpath_cache_size` says), so every file operation
+  walks the path again: `is_file()` 20 µs instead of 1.5 µs, a repeated
+  `require()` of a code cache 75 µs instead of 14 µs. This affects all of
+  TYPO3, not only this backend. Whether the hardening is worth it is a
+  decision for your platform; with a read-only root filesystem and a
+  non-root user much of what it protects is covered already.
+
 ## Three-layer storage
 
 ```text
@@ -441,7 +480,8 @@ cache runs with the memo.
 
 Code caches (`typoscript`, `fluid_template`) are executed with `require`,
 so before a payload file runs, `doRequire()` checks it: the path must not
-be a symlink (`is_link()`, on every call), and the file's sha256 must match
+be a symlink (one `lstat()`, on every call -- a link that points nowhere is
+refused as well), and the file's sha256 must match
 the checksum in the metadata. Without this option the sha256 check runs on
 the first require of each payload in every request; TYPO3 14 requires some
 25 TypoScript payloads per page, up to 1.3 MiB each, which is roughly 10 ms
@@ -449,7 +489,8 @@ of hashing per uncached render.
 
 With `crossRequestPhpVerification` on, the verification is remembered in
 the process (in FrankenPHP worker mode: across requests), keyed by the
-file's **device, inode, size and ctime** as one `lstat()` reports them.
+file's **device, inode, size and ctime** as one `lstat()` reports them --
+the same `lstat()` that answered the symlink check.
 On every require (not only the first of a request) the fingerprint is
 taken again: unchanged, the file is executed without being read; any
 difference means a full verification, exactly as without the option.

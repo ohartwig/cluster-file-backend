@@ -43,6 +43,7 @@
     },
     "suggest": {
         "ext-igbinary": "Faster default serializer (recommended)",
+        "ext-openssl": "sha256 through the CPU's SHA instructions, about 15x faster than ext-hash on aarch64 (recommended)",
         "ext-zstd": "Faster default compression (recommended)",
         "moselwal/keyvalue-store": "Provides a TYPO3 cache backend (KeyValueBackend) for Redis/Valkey that can be configured as the metadata cache."
     },

@@ -10,6 +10,8 @@
     "zstd_compress",
     "zstd_uncompress",
     "gzdeflate",
-    "gzinflate"
+    "gzinflate",
+    "openssl_digest",
+    "openssl_get_md_methods"
   ]
 }

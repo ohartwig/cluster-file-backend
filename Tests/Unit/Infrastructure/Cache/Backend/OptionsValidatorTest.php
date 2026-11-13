@@ -20,7 +20,44 @@ final class OptionsValidatorTest extends TestCase
 
     protected function setUp(): void
     {
+        OptionsValidator::forgetValidated();
         $this->validator = new OptionsValidator();
+    }
+
+    protected function tearDown(): void
+    {
+        OptionsValidator::forgetValidated();
+    }
+
+    public function testTheSameOptionsAreValidatedOnceAndGiveTheSameResult(): void
+    {
+        $options = [
+            'localPath' => '/app/var/cache/cluster/pages',
+            'metadataCacheIdentifier' => 'cluster_meta',
+            'namespace' => ['environment' => 'prod', 'instance' => 'website-a'],
+        ];
+        $first = $this->validator->validateAndApplyDefaults($options);
+
+        $again = new OptionsValidator()->validateAndApplyDefaults($options);
+
+        self::assertSame($first, $again);
+        $other = $this->validator->validateAndApplyDefaults(['compression' => 'gzip'] + $options);
+        self::assertSame('gzip', $other['compression'], 'another option set is validated on its own');
+    }
+
+    public function testAnInvalidSetIsRejectedEveryTime(): void
+    {
+        $invalid = ['localPath' => '/x', 'metadataCacheIdentifier' => 'm', 'namespace' => ['environment' => 'prod', 'instance' => 'a'], 'crossRequestMetadataMemo' => 'yes'];
+        $rejected = 0;
+        foreach ([1, 2] as $attempt) {
+            try {
+                $this->validator->validateAndApplyDefaults($invalid);
+            } catch (InvalidCacheException) {
+                ++$rejected;
+            }
+        }
+
+        self::assertSame(2, $rejected, 'an invalid set is not remembered');
     }
 
     public function testMinimalValidOptionsApplyDefaults(): void

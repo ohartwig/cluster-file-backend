@@ -58,10 +58,16 @@ final class EmptyDirPayloadStore implements LocalPayloadStorePort, StalePayloadP
     public function readVerified(PayloadHash $hash, PayloadChecksum $checksum): string
     {
         $path = $this->pathFor($hash);
-        if (!is_file($path)) {
+        // One lstat() instead of is_file(), is_link() and filemtime(). A
+        // symlink is refused even when it points nowhere: nothing but our
+        // atomic write puts entries here, and that never makes a link.
+        clearstatcache(true, $path);
+        $stat = @lstat($path);
+        $type = FileType::of($stat);
+        if (false === $stat || FileType::Other === $type) {
             throw new PayloadNotFoundException(\sprintf('payload file not found for hash %s', $hash->prefix(12)));
         }
-        if (is_link($path)) {
+        if (FileType::Symlink === $type) {
             // A symlink as the payload-store entry means something or
             // somebody bypassed our atomic-write path. Treat as integrity
             // failure to trigger the broken-state-fan-out logic.
@@ -75,8 +81,7 @@ final class EmptyDirPayloadStore implements LocalPayloadStorePort, StalePayloadP
         if (!$actual->equals($checksum)) {
             throw new PayloadIntegrityException(\sprintf('checksum mismatch for hash %s', $hash->prefix(12)));
         }
-        $mtime = @filemtime($path);
-        if (false !== $mtime && $mtime < time() - self::TOUCH_INTERVAL_SECONDS) {
+        if ((int) $stat['mtime'] < time() - self::TOUCH_INTERVAL_SECONDS) {
             @touch($path);
         }
 

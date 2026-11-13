@@ -89,6 +89,18 @@ final class VerifiedPayloadFingerprints
         }
         $mtime = (int) $stat['mtime'];
 
+        return self::fingerprintFromStat($stat);
+    }
+
+    /**
+     * The fingerprint from an lstat() result the caller already has.
+     *
+     * @param array<int|string, int> $stat
+     *
+     * @return array{0: int, 1: int, 2: int, 3: int}
+     */
+    public static function fingerprintFromStat(array $stat): array
+    {
         return [(int) $stat['dev'], (int) $stat['ino'], (int) $stat['size'], (int) $stat['ctime']];
     }
 

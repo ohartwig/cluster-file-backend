@@ -40,12 +40,15 @@ final readonly class PayloadHash
         string $phpMajorMinor,
         string $serializedBytes,
     ): self {
-        return new self(hash(self::ALGO, $serializedBytes . self::context($serializer, $compression, $backendVersion, $phpMajorMinor)));
+        return new self(Sha256::hex($serializedBytes . self::context($serializer, $compression, $backendVersion, $phpMajorMinor)));
     }
 
     /**
-     * compute() and the sha256 of the bytes alone, from one pass over the
-     * bytes: the state after them is copied before the context goes in.
+     * compute() and the sha256 of the bytes alone.
+     *
+     * With OpenSSL (Sha256) two passes are cheaper than one through ext-hash:
+     * 2.1 ms against 10.6 ms for 2.2 MB. Without it, one ext-hash pass gives
+     * both: the state after the bytes is copied before the context goes in.
      *
      * @return array{self, PayloadChecksum}
      */
@@ -56,6 +59,12 @@ final readonly class PayloadHash
         string $phpMajorMinor,
         string $serializedBytes,
     ): array {
+        if (Sha256::usesOpenSsl()) {
+            return [
+                new self(Sha256::hex($serializedBytes . self::context($serializer, $compression, $backendVersion, $phpMajorMinor))),
+                new PayloadChecksum(Sha256::hex($serializedBytes)),
+            ];
+        }
         $state = hash_init(self::ALGO);
         hash_update($state, $serializedBytes);
         $checksum = new PayloadChecksum(hash_final(hash_copy($state)));
