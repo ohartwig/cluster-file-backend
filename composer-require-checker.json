@@ -12,6 +12,7 @@
     "gzdeflate",
     "gzinflate",
     "openssl_digest",
-    "openssl_get_md_methods"
+    "openssl_get_md_methods",
+    "Moselwal\\KeyValueStore\\Cache\\Backend\\GenerationBackendInterface"
   ]
 }

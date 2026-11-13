@@ -12,9 +12,9 @@ use Moselwal\Typo3ClusterCache\Application\GarbageCollect\GarbageCollectionRepor
 use Moselwal\Typo3ClusterCache\Application\GarbageCollect\RunGarbageCollection;
 use Moselwal\Typo3ClusterCache\Domain\Contract\ClockPort;
 use Moselwal\Typo3ClusterCache\Domain\Model\CacheNamespace;
+use Moselwal\Typo3ClusterCache\Infrastructure\Cache\AtomicGenerationMetadataCache;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\Backend\ClusterFileBackend;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\GenerationGuardedMetadataCache;
-use Moselwal\Typo3ClusterCache\Infrastructure\Cache\Typo3MetadataCache;
 use Moselwal\Typo3ClusterCache\Infrastructure\Observability\PrometheusMetrics;
 use Moselwal\Typo3ClusterCache\Infrastructure\LocalStore\EmptyDirPayloadStore;
 use TYPO3\CMS\Core\Cache\CacheManager;
@@ -51,7 +51,7 @@ readonly class BackendGarbageCollectRunner
         }
 
         $metadataFrontend = $this->resolveMetadataFrontend($clusterBackend);
-        $store = new Typo3MetadataCache($metadataFrontend, $namespace);
+        $store = AtomicGenerationMetadataCache::forFrontend($metadataFrontend, $namespace);
 
         $service = new RunGarbageCollection(
             // Garbage collection mutates the store, so it goes through the

@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace Moselwal\Typo3ClusterCache\Tests\Support;
 
 use TYPO3\CMS\Core\Cache\Backend\BackendInterface;
+use TYPO3\CMS\Core\Cache\Backend\NullBackend;
 use TYPO3\CMS\Core\Cache\Frontend\FrontendInterface;
 
 /**
@@ -39,7 +40,7 @@ final class FlushFailingMetadataFrontend implements FrontendInterface
 
     public function getBackend(): BackendInterface
     {
-        throw new \RuntimeException('the backend is not reached through this double', 1785350005);
+        return new NullBackend();
     }
 
     /** @param array<mixed> $tags */

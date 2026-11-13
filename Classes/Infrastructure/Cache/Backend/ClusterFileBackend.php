@@ -28,11 +28,11 @@ use Moselwal\Typo3ClusterCache\Domain\Model\CompressionAlgo;
 use Moselwal\Typo3ClusterCache\Domain\Model\CompressionName;
 use Moselwal\Typo3ClusterCache\Domain\Model\SerializerName;
 use Moselwal\Typo3ClusterCache\Domain\Model\TagSet;
+use Moselwal\Typo3ClusterCache\Infrastructure\Cache\AtomicGenerationMetadataCache;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\CrossRequestMetadataMemo;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\GenerationGuardedMetadataCache;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\PayloadL1Cache;
 use Moselwal\Typo3ClusterCache\Infrastructure\Cache\RequestScopedMetadataCache;
-use Moselwal\Typo3ClusterCache\Infrastructure\Cache\Typo3MetadataCache;
 use Moselwal\Typo3ClusterCache\Infrastructure\Compression\GzipCompressor;
 use Moselwal\Typo3ClusterCache\Infrastructure\Compression\NullCompressor;
 use Moselwal\Typo3ClusterCache\Infrastructure\Compression\ZstdCompressor;
@@ -258,7 +258,11 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
         // of one read per identifier. The metadata frontend object is the
         // request scope: TYPO3 creates it with each CacheManager, i.e. per
         // request, and the backends of that CacheManager share one check.
-        $store = new Typo3MetadataCache($this->metadataCacheFrontend, $this->namespace);
+        //
+        // The store keeps the generation in the metadata backend itself
+        // when that backend can (one round trip per set), in an entry of
+        // the frontend otherwise.
+        $store = AtomicGenerationMetadataCache::forFrontend($this->metadataCacheFrontend, $this->namespace);
         $this->metadataCache = new RequestScopedMetadataCache(new GenerationGuardedMetadataCache(
             inner: $store,
             generation: $store,

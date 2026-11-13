@@ -8,10 +8,12 @@ declare(strict_types=1);
 
 namespace Moselwal\Typo3ClusterCache\Infrastructure\Cache;
 
+use Moselwal\Typo3ClusterCache\Domain\Contract\AtomicMetadataGenerationPort;
 use Moselwal\Typo3ClusterCache\Domain\Contract\ClockPort;
 use Moselwal\Typo3ClusterCache\Domain\Contract\MetadataCachePort;
 use Moselwal\Typo3ClusterCache\Domain\Contract\MetadataGenerationPort;
 use Moselwal\Typo3ClusterCache\Domain\Contract\MetricsPort;
+use Moselwal\Typo3ClusterCache\Domain\Enum\AtomicSetOutcome;
 use Moselwal\Typo3ClusterCache\Domain\Enum\CacheState;
 use Moselwal\Typo3ClusterCache\Domain\Model\CacheIdentifier;
 use Moselwal\Typo3ClusterCache\Domain\Model\CacheMetadata;
@@ -23,16 +25,40 @@ use Psr\Log\NullLogger;
  * {@see CrossRequestMetadataMemo} is given, serves metadata from that
  * process-wide memo for as long as the generation has not changed.
  *
- * Writing (always, memo or not):
- * every mutation — set, remove, flush, flushByTag(s), collectGarbage —
- * runs as
+ * Writing (always, memo or not) takes one of two forms. Both keep the one
+ * invariant readers rely on: **no mutation completes without the
+ * generation taking a value it never had before — or holding a dirty
+ * marker.**
+ *
+ * A. Three steps, for every mutation on every store — set, remove, flush,
+ *    flushByTag(s), collectGarbage:
  *   1. write a fresh "dirty" generation (`dirty-<random>`); if that fails,
  *      the mutation is not attempted and the error propagates,
  *   2. the mutation itself,
- *   3. read the generation: unless it is another writer's dirty marker
+ *   3. publish: unless the generation is another writer's dirty marker
  *      (that writer is still mid-mutation and will publish itself), write
  *      a fresh clean generation (`<random>`). Failures here are logged and
  *      counted, not thrown: the generation then stays dirty, which is safe.
+ *      On a store with {@see AtomicMetadataGenerationPort} the check and
+ *      the write of step 3 are one step on the server; otherwise a read
+ *      followed by a write.
+ *
+ * B. One step, for `set` on a store with {@see AtomicMetadataGenerationPort}:
+ *    the entry and a fresh clean generation are written together,
+ *    atomically. No dirty marker is needed because there is no moment at
+ *    which the entry has changed and the generation has not: the step
+ *    either happened as a whole or not at all, and an error propagates
+ *    like a failed set. Two things can make it differ:
+ *   - the generation is another writer's dirty marker: the entry is
+ *     written, the marker is left untouched. That writer is in step A.2
+ *     and publishes after it; replacing its marker with a clean value
+ *     would leave a clean generation over its half-applied mutation if its
+ *     publish then failed.
+ *   - the store refuses because a writer that does not know its generation
+ *     is active (a pod of an older release, see
+ *     {@see AtomicGenerationMetadataCache}): nothing is written and the
+ *     set runs as A.
+ *
  * While a generation is dirty or absent, no pod uses its memo.
  *
  * Reading (memo given):
@@ -43,14 +69,15 @@ use Psr\Log\NullLogger;
  * value; a dirty, absent or unreadable one empties it and turns it off for
  * the request. Entries are only memoised after that check, so every entry
  * in a memo under generation G was read after G was observed; and G, being
- * random, was written exactly once. Every mutation is followed by a write
- * of a value other than G (its own step 3, or — when it defers — the step
- * 3 of the writer whose marker it saw, which comes later still). So if a
- * read at the start of a later request still returns G, every mutation
- * that had completed by then wrote its metadata before G was written, and
- * hence before any memoised entry was read. That is the cross-pod
- * guarantee: a change that completed on pod B is seen by pod A at A's
- * next request — the same promise the per-entry reads gave.
+ * random, was written exactly once. Every mutation is followed by — or, in
+ * form B, happens together with — a write of a value other than G: its own
+ * publish, the atomic step itself, or, when it defers or leaves a foreign
+ * marker, the publish of the writer whose marker it saw, which comes later
+ * still. So if a read at the start of a later request still returns G,
+ * every mutation that had completed by then wrote its metadata no later
+ * than G was written, and hence before any memoised entry was read. That
+ * is the cross-pod guarantee: a change that completed on pod B is seen by
+ * pod A at A's next request — the same promise the per-entry reads gave.
  *
  * Entries are honoured only until their own expiry; `broken` markers are
  * never memoised (the store keeps them for a shorter TTL than their
@@ -59,9 +86,11 @@ use Psr\Log\NullLogger;
  * top keeps read-your-writes within the request.
  *
  * Without a memo (option off), the decorator only maintains the generation,
- * which costs nothing on reads and three small operations per mutation.
- * Running every pod with that version first is what makes switching the
- * memo on safe (see README, "Cross-request metadata memo").
+ * which costs nothing on reads and, per mutation, nothing extra for a set
+ * in form B, two small operations in form A with the capability and three
+ * without. Running every pod with a version that maintains the generation
+ * first is what makes switching the memo on safe (see README,
+ * "Cross-request metadata memo").
  */
 final class GenerationGuardedMetadataCache implements MetadataCachePort
 {
@@ -74,6 +103,13 @@ final class GenerationGuardedMetadataCache implements MetadataCachePort
      * final generation write of one of them fails — to minutes.
      */
     public const int MAX_AGE_SECONDS = 300;
+
+    /**
+     * The store's one-step capability, when it has one. Only taken from
+     * the object that is both the entry store and the generation store: a
+     * set through it must reach the same entries `$inner` reads.
+     */
+    private readonly ?AtomicMetadataGenerationPort $atomic;
 
     /**
      * @param array<string, string> $labels       Metric labels of the owning cache
@@ -91,7 +127,17 @@ final class GenerationGuardedMetadataCache implements MetadataCachePort
         private readonly ?CrossRequestMetadataMemo $memo = null,
         private readonly ?object $requestScope = null,
         private readonly LoggerInterface $logger = new NullLogger(),
-    ) {}
+    ) {
+        $this->atomic = $inner instanceof AtomicMetadataGenerationPort && $inner === $generation ? $inner : null;
+    }
+
+    /**
+     * Whether a set is one step on this store (form B of the class comment).
+     */
+    public function isAtomic(): bool
+    {
+        return null !== $this->atomic;
+    }
 
     public function isMemoEnabled(): bool
     {
@@ -129,6 +175,21 @@ final class GenerationGuardedMetadataCache implements MetadataCachePort
 
     public function set(CacheIdentifier $identifier, CacheMetadata $metadata, array $tags, int $ttlSeconds): void
     {
+        if (null !== $this->atomic) {
+            // As in mutate(): our own memo is about to be outdated.
+            $this->memo?->invalidate();
+            $outcome = $this->atomic->setWithGeneration($identifier, $metadata, $tags, $ttlSeconds, self::randomToken());
+            if (AtomicSetOutcome::Refused !== $outcome) {
+                $this->metrics->counter('metadata_generation_publish_total', $this->labels + [
+                    'result' => AtomicSetOutcome::Published === $outcome ? 'published' : 'deferred',
+                ]);
+
+                return;
+            }
+            // A writer that only knows the legacy generation is active:
+            // nothing was written, take the steps that writer understands.
+            $this->metrics->counter('metadata_generation_atomic_refused_total', $this->labels);
+        }
         $this->mutate(fn() => $this->inner->set($identifier, $metadata, $tags, $ttlSeconds));
     }
 
@@ -244,14 +305,16 @@ final class GenerationGuardedMetadataCache implements MetadataCachePort
     private function publish(string $dirty): void
     {
         try {
-            $current = $this->generation->readGeneration();
-            if (null !== $current && $current !== $dirty && str_starts_with($current, self::DIRTY_PREFIX)) {
-                $this->metrics->counter('metadata_generation_publish_total', $this->labels + ['result' => 'deferred']);
-
-                return;
+            if (null !== $this->atomic) {
+                $published = $this->atomic->publishGeneration($dirty, self::randomToken());
+            } else {
+                $current = $this->generation->readGeneration();
+                $published = null === $current || $current === $dirty || !str_starts_with($current, self::DIRTY_PREFIX);
+                if ($published) {
+                    $this->generation->writeGeneration(self::randomToken());
+                }
             }
-            $this->generation->writeGeneration(self::randomToken());
-            $this->metrics->counter('metadata_generation_publish_total', $this->labels + ['result' => 'published']);
+            $this->metrics->counter('metadata_generation_publish_total', $this->labels + ['result' => $published ? 'published' : 'deferred']);
         } catch (\Throwable $e) {
             // The generation stays dirty: every pod bypasses its memo until
             // the next mutation publishes. Safe, only slower.

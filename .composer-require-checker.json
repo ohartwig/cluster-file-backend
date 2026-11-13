@@ -7,6 +7,7 @@
     "Doctrine\\DBAL\\ParameterType",
     "Doctrine\\DBAL\\Query\\QueryBuilder",
     "Doctrine\\DBAL\\Result",
+    "Moselwal\\KeyValueStore\\Cache\\Backend\\GenerationBackendInterface",
     "Psr\\Cache\\CacheItemInterface",
     "Psr\\Cache\\CacheItemPoolInterface",
     "Psr\\Container\\ContainerInterface",
