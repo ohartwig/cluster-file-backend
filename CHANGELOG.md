@@ -1,3 +1,9 @@
+## [2.8.3](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.8.2...v2.8.3) (2026-11-13)
+
+### :fast_forward: Performance
+
+* **cache:** metadata set and generation change in one round trip ([91c5efa](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/91c5efad3c90dd135f26cf2ca96f82ac8bb21540))
+
 ## [2.8.2](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.8.1...v2.8.2) (2026-11-13)
 
 ### :bug: Fixes
