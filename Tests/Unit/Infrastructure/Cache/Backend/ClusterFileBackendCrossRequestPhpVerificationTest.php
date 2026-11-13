@@ -31,9 +31,10 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
  * every kind of change (in-place write, replacement, symlink) is caught on
  * the next require.
  *
- * A fingerprint is only recorded once the file's ctime lies in an earlier
- * second than the check, so the tests that rely on a recorded fingerprint
- * wait for the next second after writing the payload.
+ * A fingerprint is only recorded once the file's ctime lies at least
+ * VerifiedPayloadFingerprints::SETTLE_SECONDS before the check, so the tests
+ * that rely on a recorded fingerprint wait that long after writing the
+ * payload.
  */
 #[CoversClass(ClusterFileBackend::class)]
 final class ClusterFileBackendCrossRequestPhpVerificationTest extends TestCase
@@ -151,12 +152,12 @@ final class ClusterFileBackendCrossRequestPhpVerificationTest extends TestCase
         return $found[0];
     }
 
-    /** Waits until the wall clock is in a later second than the payload's ctime. */
+    /** Waits until the payload's ctime has settled (SETTLE_SECONDS behind the wall clock). */
     private function letTheCtimeAge(): void
     {
         clearstatcache();
         $ctime = (int) \filectime($this->soledPayloadFile());
-        while (\time() <= $ctime) {
+        while (\time() < $ctime + VerifiedPayloadFingerprints::SETTLE_SECONDS) {
             \usleep(50_000);
         }
     }
@@ -291,8 +292,8 @@ final class ClusterFileBackendCrossRequestPhpVerificationTest extends TestCase
     }
 
     /**
-     * A file whose ctime is in the current second could still be written
-     * within that second without its ctime changing, so it is verified again.
+     * A file whose ctime is not settled yet could still be written without
+     * its ctime changing, so it is verified again.
      */
     #[Test]
     public function aFileWrittenThisSecondIsVerifiedEveryTime(): void
@@ -300,14 +301,14 @@ final class ClusterFileBackendCrossRequestPhpVerificationTest extends TestCase
         $this->phpBackend()->set('entry-a', "<?php\nreturn ['answer' => 42];\n");
         clearstatcache();
         $ctime = (int) \filectime($this->soledPayloadFile());
-        if (\time() > $ctime) {
-            self::markTestSkipped('the second turned over between write and require; nothing to observe');
+        if (\time() >= $ctime + VerifiedPayloadFingerprints::SETTLE_SECONDS) {
+            self::markTestSkipped('the ctime settled between write and require; nothing to observe');
         }
 
         self::assertSame(['answer' => 42], $this->phpBackend()->require('entry-a'));
         self::assertSame(['answer' => 42], $this->phpBackend()->require('entry-a'));
 
-        if (\time() === $ctime) {
+        if (\time() < $ctime + VerifiedPayloadFingerprints::SETTLE_SECONDS) {
             self::assertSame(['verified' => 2], $this->fingerprintResults());
         }
     }

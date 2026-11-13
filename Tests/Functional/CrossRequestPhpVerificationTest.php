@@ -95,7 +95,8 @@ final class CrossRequestPhpVerificationTest extends FunctionalTestCase
         $payload = $this->payloadFile();
         clearstatcache();
         $ctime = (int) filectime($payload);
-        while (time() <= $ctime) {
+        // Settled: SETTLE_SECONDS after the write, see VerifiedPayloadFingerprints.
+        while (time() < $ctime + VerifiedPayloadFingerprints::SETTLE_SECONDS) {
             usleep(50_000);
         }
 

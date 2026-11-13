@@ -49,7 +49,7 @@ final class OptionsValidatorTest extends TestCase
     {
         $invalid = ['localPath' => '/x', 'metadataCacheIdentifier' => 'm', 'namespace' => ['environment' => 'prod', 'instance' => 'a'], 'crossRequestMetadataMemo' => 'yes'];
         $rejected = 0;
-        foreach ([1, 2] as $attempt) {
+        for ($attempt = 0; $attempt < 2; ++$attempt) {
             try {
                 $this->validator->validateAndApplyDefaults($invalid);
             } catch (InvalidCacheException) {

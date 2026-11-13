@@ -31,11 +31,17 @@ namespace Moselwal\Typo3ClusterCache\Infrastructure\LocalStore;
  * the checksum).
  *
  * PHP reports ctime in whole seconds. A write in the same second as the
- * recorded ctime would not change it, so a fingerprint is only recorded when
- * its ctime is strictly older than the second in which the lstat() was taken
- * (`$observedAt`): every later write then carries a ctime of that second or
- * later, which differs. A file written less than a second before it was
- * verified is therefore verified again on its next require.
+ * recorded ctime would not change it. And the kernel stamps file times from
+ * a coarse clock that runs up to a tick behind the wall clock time() reads:
+ * a write just after a second boundary can carry the previous second's ctime
+ * (measured on a CI runner, overlayfs: written at time() 803, ctime 802).
+ * So a fingerprint is only recorded when its ctime lies at least
+ * SETTLE_SECONDS before the second in which the lstat() was taken
+ * (`$observedAt`). A later write happens at a wall clock of `$observedAt` or
+ * later and is stamped less than a second behind it, so its ctime is at
+ * least `$observedAt - 1` -- newer than any recorded ctime. A file written
+ * less than two seconds before it was verified is therefore verified again
+ * on its next require.
  *
  * Holds no request state: paths of payload files and their stat values. In
  * FrankenPHP worker mode it lives as long as the worker. Bounded by entry
@@ -46,6 +52,13 @@ namespace Moselwal\Typo3ClusterCache\Infrastructure\LocalStore;
 final class VerifiedPayloadFingerprints
 {
     public const int DEFAULT_MAX_ENTRIES = 4096;
+
+    /**
+     * How many whole seconds a file's ctime must lie before the check for its
+     * fingerprint to be recorded: one for the whole-second resolution, one
+     * for the kernel's coarse file clock running behind time().
+     */
+    public const int SETTLE_SECONDS = 2;
 
     private static ?self $processWide = null;
 
@@ -122,7 +135,7 @@ final class VerifiedPayloadFingerprints
     public function remember(string $key, array $fingerprint, int $observedAt): bool
     {
         unset($this->verified[$key]);
-        if ($fingerprint[3] >= $observedAt) {
+        if ($fingerprint[3] > $observedAt - self::SETTLE_SECONDS) {
             return false;
         }
         while (\count($this->verified) >= $this->maxEntries) {

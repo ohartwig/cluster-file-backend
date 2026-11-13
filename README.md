@@ -508,9 +508,15 @@ content or swap the file without the kernel setting a new ctime (or giving
 the path another inode), and only root can set ctime. Root in the
 container, and anyone who can write the metadata cache (it states the
 checksum), are out of scope, as they are without the option. ctime has
-whole-second resolution in PHP, so a fingerprint is only recorded when the
-file's ctime lies in an earlier second than the check; a file written in
-the current second is verified again on its next require. Once an hour a
+whole-second resolution in PHP, and the kernel stamps file times from a
+coarse clock that can run behind the wall clock, so a write just after a
+second boundary may still carry the previous second. A fingerprint is
+therefore only recorded when the file's ctime lies at least two seconds
+before the check (`VerifiedPayloadFingerprints::SETTLE_SECONDS`); a file
+written less than two seconds earlier is verified again on its next
+require. Up to v2.8.1 one second was assumed to be enough -- on a CI runner
+a write right after the boundary kept the previous second's ctime and went
+unnoticed. Once an hour a
 payload is verified in full anyway: that read refreshes its mtime, which
 keeps garbage collection away from payloads in use.
 
