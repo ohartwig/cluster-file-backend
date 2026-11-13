@@ -37,6 +37,7 @@ use Moselwal\Typo3ClusterCache\Infrastructure\Compression\GzipCompressor;
 use Moselwal\Typo3ClusterCache\Infrastructure\Compression\NullCompressor;
 use Moselwal\Typo3ClusterCache\Infrastructure\Compression\ZstdCompressor;
 use Moselwal\Typo3ClusterCache\Infrastructure\LocalStore\EmptyDirPayloadStore;
+use Moselwal\Typo3ClusterCache\Infrastructure\LocalStore\FileType;
 use Moselwal\Typo3ClusterCache\Infrastructure\LocalStore\VerifiedPayloadFingerprints;
 use Moselwal\Typo3ClusterCache\Infrastructure\Observability\PrometheusMetrics;
 use Moselwal\Typo3ClusterCache\Infrastructure\Time\SystemClock;
@@ -631,7 +632,12 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
         // call below; see verifyAgainstFingerprint().
         clearstatcache();
         $observedAt = time();
-        if (!is_file($path)) {
+        // One lstat() answers what is_file(), is_link() and the fingerprint
+        // lstat() asked one after another: with open_basedir set PHP keeps no
+        // realpath cache, so every one of them walked the path in full.
+        $stat = @lstat($path);
+        $type = FileType::of($stat);
+        if (false === $stat || FileType::Other === $type) {
             // Blob-miss: file is not pod-locally materialised yet. The
             // TYPO3 PhpFrontend contract returns false to signal "rebuild
             // me"; the caller will then `set()` the payload, which writes
@@ -643,9 +649,9 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
         // Defense-in-depth — always check, every call. The on-disk file
         // could have been swapped for a symlink by a sidecar / compromised
         // init container / world-writable misconfig between two
-        // requireOnce calls. `is_link()` is a single lstat, ~0.2 µs
-        // amortised; cheap enough to never skip.
-        if (is_link($path)) {
+        // requireOnce calls. Read from the lstat() above, which does not
+        // follow links; a link that points nowhere is refused too.
+        if (FileType::Symlink === $type) {
             $this->cfbLogger->error('ClusterFileBackend::doRequire refused: payload path is a symlink', [
                 'cacheName' => $this->namespace->cacheName,
                 'identifierDigest' => $this->hashIdentifierForLog($identifier),
@@ -657,7 +663,7 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
         }
 
         if ($this->crossRequestPhpVerification) {
-            if (!$this->verifyAgainstFingerprint($path, $metadata, $identifier, $observedAt)) {
+            if (!$this->verifyAgainstFingerprint($path, $stat, $metadata, $identifier, $observedAt)) {
                 return false;
             }
 
@@ -753,19 +759,20 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
      *
      * @return bool false: do not execute the file (entry handled as a miss or as broken)
      */
-    private function verifyAgainstFingerprint(string $path, CacheMetadata $metadata, CacheIdentifier $identifier, int $observedAt): bool
+    /**
+     * @param array<int|string, int> $stat the lstat() doRequire() took after reading $observedAt
+     */
+    private function verifyAgainstFingerprint(string $path, array $stat, CacheMetadata $metadata, CacheIdentifier $identifier, int $observedAt): bool
     {
         $fingerprints = VerifiedPayloadFingerprints::processWide();
         $key = $path . "\0" . $metadata->checksum->digest;
-        // The lstat() that is_link() made in doRequire(), from PHP's stat
-        // cache; it ran after $observedAt was read.
-        $mtime = null;
-        $fingerprint = VerifiedPayloadFingerprints::fingerprintOf($path, $mtime);
+        $mtime = (int) $stat['mtime'];
+        $fingerprint = VerifiedPayloadFingerprints::fingerprintFromStat($stat);
         // A file not touched for an hour is verified in full once more: the
         // verifying read also refreshes its mtime, which keeps garbage
         // collection away from payloads in use (EmptyDirPayloadStore).
-        $touchDue = null !== $mtime && $mtime < $observedAt - EmptyDirPayloadStore::TOUCH_INTERVAL_SECONDS;
-        if (null !== $fingerprint && !$touchDue && $fingerprints->isVerified($key, $fingerprint)) {
+        $touchDue = $mtime < $observedAt - EmptyDirPayloadStore::TOUCH_INTERVAL_SECONDS;
+        if (!$touchDue && $fingerprints->isVerified($key, $fingerprint)) {
             $this->metrics->counter('php_payload_fingerprint_total', [
                 'cacheName' => $this->namespace->cacheName,
                 'namespace' => $this->namespace->toKvKeyPrefix(),
@@ -779,9 +786,7 @@ final class ClusterFileBackend extends AbstractBackend implements TaggableBacken
         if (!$this->verifyPayload($metadata, $identifier)) {
             return false;
         }
-        if (null !== $fingerprint) {
-            $fingerprints->remember($key, $fingerprint, $observedAt);
-        }
+        $fingerprints->remember($key, $fingerprint, $observedAt);
         $this->metrics->counter('php_payload_fingerprint_total', [
             'cacheName' => $this->namespace->cacheName,
             'namespace' => $this->namespace->toKvKeyPrefix(),

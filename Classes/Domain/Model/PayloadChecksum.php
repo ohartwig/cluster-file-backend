@@ -23,7 +23,7 @@ final readonly class PayloadChecksum
 
     public static function ofBytes(string $bytes): self
     {
-        return new self(hash(self::ALGO, $bytes));
+        return new self(Sha256::hex($bytes));
     }
 
     public function equals(self $other): bool

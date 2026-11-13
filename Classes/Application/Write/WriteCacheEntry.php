@@ -84,18 +84,48 @@ final class WriteCacheEntry
         // the marker prefix would leak a NUL byte to the response body via
         // `require_once`. The reader side knows the encoding from metadata.
         $payload = $this->bareBytes ? $compressed : ($effectiveAlgo->marker() . $compressed);
-        $hash = $this->hasher->fromRawBytes(
-            $rawBytes,
-            $this->serializer,
-            $this->compression,
-            $this->backendVersion,
-        );
-        $checksum = PayloadChecksum::ofBytes($payload);
+        // Stored as serialized (a PHP cache's bare, uncompressed bytes): the
+        // file's checksum is the sha256 of the serialized bytes, taken from
+        // the pass that computes the hash. Otherwise the stored bytes differ
+        // and get a pass of their own. One pass instead of two is what the
+        // largest entries need: compiled TypoScript and Fluid templates, all
+        // PHP caches, rewritten after every cache flush.
+        if ($this->bareBytes && CompressionAlgo::None === $effectiveAlgo) {
+            [$hash, $checksum] = $this->hasher->fromRawBytesWithChecksum(
+                $rawBytes,
+                $this->serializer,
+                $this->compression,
+                $this->backendVersion,
+            );
+        } else {
+            $hash = $this->hasher->fromRawBytes(
+                $rawBytes,
+                $this->serializer,
+                $this->compression,
+                $this->backendVersion,
+            );
+            $checksum = PayloadChecksum::ofBytes($payload);
+        }
         $lifetime = 0 === $lifetimeSeconds
             ? Lifetime::unlimited($this->clock)
             : Lifetime::fromSeconds($lifetimeSeconds, $this->clock);
 
         $existing = $this->metadataCache->get($identifier);
+        if (null !== $existing && $existing->hash->equals($hash) && $this->isUnchanged($existing, $checksum, $lifetime, $tags)) {
+            // Nothing to repair: the entry states these bytes, these tags and
+            // no expiry, and the file is there. Writing both again cost five
+            // metadata round trips and a generation bump, which empties every
+            // worker's metadata memo -- paid each time several workers rebuild
+            // the same entry after a flush. A file that is there but corrupt
+            // is caught by the reader's checksum, marked broken, and then
+            // rewritten in full by the next set(), which no longer matches.
+            if (!$this->localStore->exists($hash)) {
+                $this->localStore->write($hash, $payload);
+            }
+            $this->metrics->counter('repair_unchanged_total', $this->labels($namespace));
+
+            return;
+        }
         if (null !== $existing && $existing->hash->equals($hash)) {
             // Repair path: same order — local first, then metadata.
             $this->localStore->write($hash, $payload);
@@ -132,6 +162,34 @@ final class WriteCacheEntry
             $this->labels($namespace) + ['direction' => 'write'],
             (float) \strlen($payload),
         );
+    }
+
+    /**
+     * Whether the existing metadata already says what a write would say: a
+     * valid entry for this checksum and these tags, in this format, that never
+     * expires. Only unlimited lifetimes qualify -- every PHP cache entry --
+     * because a limited one would get a new expiry from the write, and that
+     * write is what the caller asked for.
+     */
+    private function isUnchanged(CacheMetadata $existing, PayloadChecksum $checksum, Lifetime $lifetime, TagSet $tags): bool
+    {
+        if (!$existing->state->isValid() || !$existing->checksum->equals($checksum)) {
+            return false;
+        }
+        if (!$existing->lifetime->isUnlimited() || !$lifetime->isUnlimited()) {
+            return false;
+        }
+        if ($existing->backendVersion->value !== $this->backendVersion->value
+            || $existing->serializer->version !== $this->serializer->version
+            || $existing->compression->name !== $this->compression->name) {
+            return false;
+        }
+        $have = $existing->tags->toArray();
+        $want = $tags->toArray();
+        sort($have);
+        sort($want);
+
+        return $have === $want;
     }
 
     private function buildMetadata(

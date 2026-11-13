@@ -20,6 +20,34 @@ final class OptionsValidator
 {
     private const string SCHEMA_PATH = __DIR__ . '/../../../../Configuration/Backend/ClusterFileBackend.options.schema.json';
 
+    /** Distinct option sets remembered per process; an installation has a handful. */
+    private const int MAX_REMEMBERED = 64;
+
+    /**
+     * Option sets already validated in this process, by their serialized
+     * form. TYPO3 builds a new CacheManager, and with it every backend, for
+     * each request -- a FrankenPHP worker with a persistent bootstrap does not
+     * keep it -- so without this each request reads and parses the schema and
+     * validates the same options again for every ClusterFileBackend cache:
+     * 144 of the 164 µs a backend took to construct. The schema is a file of
+     * this package and the result depends on nothing else, so the same
+     * options give the same result for the life of the process. Only valid
+     * sets are remembered; an invalid one is rejected again every time.
+     *
+     * @var array<string, array<string, mixed>>
+     */
+    private static array $validated = [];
+
+    /**
+     * For tests: forget the validated option sets.
+     *
+     * @internal
+     */
+    public static function forgetValidated(): void
+    {
+        self::$validated = [];
+    }
+
     /**
      * @param array<string, mixed> $options
      *
@@ -29,6 +57,10 @@ final class OptionsValidator
      */
     public function validateAndApplyDefaults(array $options): array
     {
+        $key = serialize($options);
+        if (isset(self::$validated[$key])) {
+            return self::$validated[$key];
+        }
         $schemaJson = @file_get_contents(self::SCHEMA_PATH);
         if (false === $schemaJson) {
             throw new InvalidCacheException(\sprintf('ClusterFileBackend options schema not found at %s', self::SCHEMA_PATH), 1747500001);
@@ -53,6 +85,9 @@ final class OptionsValidator
 
         /** @var array<string, mixed> $normalized */
         $normalized = json_decode(json_encode($data, \JSON_THROW_ON_ERROR), true);
+        if (\count(self::$validated) < self::MAX_REMEMBERED) {
+            self::$validated[$key] = $normalized;
+        }
 
         return $normalized;
     }
