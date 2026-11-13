@@ -1,3 +1,14 @@
+## [2.8.2](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.8.1...v2.8.2) (2026-11-13)
+
+### :bug: Fixes
+
+* **verification:** record a PHP payload fingerprint only once its ctime has settled ([22fa089](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/22fa089b5e7bf6bca67bdd6dac159691887177dd))
+
+### :fast_forward: Performance
+
+* sha256 through OpenSSL, options validated once, one lstat per require, unchanged sets skipped ([193c1d3](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/193c1d3c6d5dad4500a9325be603a73574d9d7a0))
+* **write:** hash and checksum a PHP cache payload in one pass ([68b62f8](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/68b62f8aa5bd9ba94624655f3aff6f96b0c090a7))
+
 ## [2.8.1](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.8.0...v2.8.1) (2026-11-12)
 
 ### :repeat: Chores
