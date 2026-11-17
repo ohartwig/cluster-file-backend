@@ -1,3 +1,14 @@
+## [2.8.6](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.8.5...v2.8.6) (2026-11-17)
+
+### :bug: Fixes
+
+* **composer:** point homepage at the package page ([5e756f7](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/5e756f78f6fcd3e6d7b89ea2c9dde048e6f85ef6))
+
+### :repeat: Chores
+
+* **deps:** update dependency registry.ole-hartwig.eu/devops/images/franken-php/ci to v3.2.246-8.5 ([61ad0d5](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/61ad0d5a2cef62e9a93265dba5e24e50b9564c98))
+* **deps:** update lefthook hook images ([9895f2d](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/9895f2d11207be0f88daa7e18555d00bcbc896de))
+
 ## [2.8.5](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.8.4...v2.8.5) (2026-11-14)
 
 ### :repeat: Chores
