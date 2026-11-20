@@ -1,3 +1,9 @@
+## [2.8.7](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.8.6...v2.8.7) (2026-11-20)
+
+### :repeat: Chores
+
+* **deps:** update composer packages ([479eefa](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/commit/479eefa0301028d256ebfba4e816a023e5ec3c64))
+
 ## [2.8.6](https://git.ole-hartwig.eu/development/moselwal/cluster-file-backend/compare/v2.8.5...v2.8.6) (2026-11-17)
 
 ### :bug: Fixes
