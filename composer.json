@@ -35,11 +35,11 @@
     },
     "require-dev": {
         "deptrac/deptrac": "^4.7.2",
-        "ergebnis/composer-normalize": "^2.57.0",
+        "ergebnis/composer-normalize": "^2.58.0",
         "koh/dev-typo3": "^1.0",
         "moselwal/keyvalue-store": "^4.9.0",
         "phpstan/phpstan-deprecation-rules": "^2.0.5",
-        "phpunit/phpunit": "^13.4.7",
+        "phpunit/phpunit": "^13.4.8",
         "typo3/testing-framework": "^9.7.0"
     },
     "suggest": {
